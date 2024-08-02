@@ -174,6 +174,9 @@ susceptibleSpatRaster <- terra::rast(
     mustWork = TRUE
   )
 )
+data("healthZonesCongo", package = "spatialEpisim.foundation")
+data("initialInfections.fourCities", package = "spatialEpisim.foundation")
+data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -185,7 +188,7 @@ SVEIRD.BayesianDataAssimilation(
   ## Model runtime
   n.days = 31, # a month, permitting three assimilations of observed data
   ## Model data
-  seedData = data("initialInfections.fourCities"),
+  seedData = initialInfections.fourCities,
   seedRadius = 1,
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
@@ -193,10 +196,10 @@ SVEIRD.BayesianDataAssimilation(
   rasterAgg = 35,
   startDate = "2018-08-05",
   countryISO3C = "COD",
-  incidenceData = data("Congo.EbolaIncidence"),
+  incidenceData = Congo.EbolaIncidence,
   ## Model options
   dataAssimilationEnabled = TRUE,
-  healthZoneCoordinates = data("healthZonesCongo"),
+  healthZoneCoordinates = healthZonesCongo,
   variableCovarianceFunction = "DBD",
   ## Special parameters
   Q.backgroundErrorStandardDeviation = 0.55,

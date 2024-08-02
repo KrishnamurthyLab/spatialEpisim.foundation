@@ -525,7 +525,7 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   ## q ✕ p, where p is the number of cells in the SpatRaster layers (nrow *
   ## ncols), and q is the number of health zones; i.e., the dimensions of the
   ## matrix are n health zones ✕ m cells in the SpatRaster.
-  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), ncell(layers))
+  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
 
   ## NOTE: these are the weightings used for the chess queen 🨁 zeroth, first,
   ## and second order neighbors. The zeroth order neighbor is the position of
@@ -948,21 +948,22 @@ SVEIRD.BayesianDataAssimilation <-
     ## proportion$vaccinated, or the proportion$exposed, is self-describing.
     proportion <-
       purrr::map_dbl(c(vaccinated = layers$Vaccinated,
-                exposed = layers$Exposed,
-                infected = layers$Infected,
-                recovered = layers$Recovered,
-                dead = layers$Dead),
-              function(otherCompartment, susceptibleCompartment) {
-                sum(terra::values(otherCompartment)) / susceptibleCompartment
-              },
-              ## NOTE: Supplying the sum of the values of the susceptible compartment
-              ## as an extra argument passed to the anonymous function ensures
-              ## that its value is only calculated once.
-              susceptibleCompartment = sum(terra::values(layers$Susceptible)))
+                       exposed = layers$Exposed,
+                       infected = layers$Infected,
+                       recovered = layers$Recovered,
+                       dead = layers$Dead),
+                     function(otherCompartment, susceptibleCompartment) {
+                       sum(terra::values(otherCompartment)) / susceptibleCompartment
+                     },
+                     ## NOTE: Supplying the sum of the values of the susceptible compartment
+                     ## as an extra argument passed to the anonymous function ensures
+                     ## that its value is only calculated once.
+                     susceptibleCompartment = sum(terra::values(layers$Susceptible)))
 
     ## Calculate the actual number of people that have moved to other compartments
     ## and subtract these from the original Susceptible compartment count.
-    terra::values(layers$Susceptible) %<>% sum(terra::as.matrix(layers$Susceptible) * -proportion)
+    terra::values(layers$Susceptible) %<>%
+      sum(terra::as.matrix(layers$Susceptible) * -proportion)
 
     if (dataAssimilationEnabled) {
       ## MAYBE TODO: resurrect some, a lot, or all of the other print statements
@@ -1037,33 +1038,41 @@ SVEIRD.BayesianDataAssimilation <-
       ## summary data at the end of the function.
       ## summary[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
 
+      ## BEGIN FIXME -----------------------------------------------------------
+      ## The following code which calculates the counts for compartments and
+      ## assigns them to the summary data frame is wildly incorrect at the
+      ## moment.
+      ## -----------------------------------------------------------------------
       ## Set NSVEI counts in the summary table.
-      with(proportion, {
-        summary[today, 2] <- round(sum(susceptible,
-                                   vaccinated,
-                                   exposed,
-                                   infected,
-                                   recovered,
-                                   dead)) # Calculate the population; MAYBE FIXME: aren't the dead supposed to be uncounted, because N := SVEIR?
-        summary[today, 3] <- round(susceptible)
-        summary[today, 4] <- round(vaccinated) # Absorbing state
-        ## This is the prevalence (active exposed cases) at time today, NOT the
-        ## cumulative sum.
-        summary[today, 5] <- round(exposed)
-        ## This is the prevalence (active infectious cases) at time today, NOT the
-        ## cumulative sum.
-        summary[today, 6] <- round(infected)
+      ## FIXME:
+      ## [1] "Proportion:\nNaN" "Proportion:\nNaN" "Proportion:\nNaN"
+      ## [4] "Proportion:\nNaN" "Proportion:\nNaN"
+      print(sprintf("Proportion:\n%s", proportion))
 
-        layerWideMatrices <- lapply(c(Inhabited = inhabited,
-                                      Susceptible = susceptible,
-                                      Vaccinated = vaccinated,
-                                      Exposed = exposed,
-                                      Infected = infected,
-                                      Recovered = recovered,
-                                      Dead = dead),
-                                    terra::as.matrix,
-                                    wide = TRUE)
-      })
+      counts <- as.vector(terra::as.matrix(layers$Susceptible) * proportion)
+      population <- sum(terra::values(layers$Susceptible), counts); stopifnot(length(population == 1))
+      summary[today, 2] <- round(population)
+      summary[today, 3] <- round(sum(terra::values(layers$susceptible)))
+      summary[today, 4] <- round(counts[1])
+      ## This is the prevalence (active exposed cases) at time today, NOT the
+      ## cumulative sum.
+      summary[today, 5] <- round(counts[2])
+      ## This is the prevalence (active infectious cases) at time today, NOT the
+      ## cumulative sum.
+      summary[today, 6] <- round(counts[3])
+
+      layerWideMatrices <- lapply(c(Inhabited = inhabited,
+                                    Susceptible = susceptible,
+                                    Vaccinated = vaccinated,
+                                    Exposed = exposed,
+                                    Infected = infected,
+                                    Recovered = recovered,
+                                    Dead = dead),
+                                  terra::as.matrix,
+                                  wide = TRUE)
+      ## -----------------------------------------------------------------------
+      ## END FIXME: this was the former usage of with(proportion, { ... }) -----
+      ## -----------------------------------------------------------------------
 
       numberLiving <- sum(layerWideMatrices)
       transmissionLikelihoods <-
