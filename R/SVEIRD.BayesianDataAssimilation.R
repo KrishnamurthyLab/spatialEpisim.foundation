@@ -2,24 +2,15 @@ options(conflicts.policy = list(warn = FALSE))
 
 suppressPackageStartupMessages({
   library(Matrix)
-  library(av)
   library(countrycode)
-  library(cptcity)
-  library(fasterize)
   library(geodata)
   library(here)
   library(httr2)
-  library(lattice)
-  library(lubridate)
-  library(magick)
-  library(rasterVis)
-  library(readxl)
-  library(rstudioapi)
-  library(sf)
-  library(sp)
   library(terra)
-  library(tidyverse)
-  library(writexl)
+  library(tidyr)
+  library(tibble)
+  library(purrr)
+  library(dplyr)
   library(magrittr)
 })
 
@@ -39,12 +30,13 @@ suppressPackageStartupMessages({
 ##' @param countryISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder The destination folder the downloaded data will be stored in
-##' @return An absolute path where the data was downloaded, or the path at which
+##' @returns An absolute path where the data was downloaded, or the path at which
 ##'   the file already existed
-##' @author Bryce
+##' @author Bryce Carson
+##' @export
 ##' @examples
-##' downloadWorldPopData("USA", here("data", "geotiff"))
-downloadWorldPopData <- function(countryISO3C, folder = here("data", "geotiff")) {
+##' downloadWorldPopData("COD", here("data", "geotiff"))
+downloadWorldPopData <- function(countryISO3C, folder = here::here("data", "geotiff")) {
   ## Construct the path to the data on data.worldpop.org
   urlPath <-
     c("GIS",
@@ -55,17 +47,17 @@ downloadWorldPopData <- function(countryISO3C, folder = here("data", "geotiff"))
       basename = sprintf("%s_ppp_2020_1km_Aggregated_UNadj.tif",
                          tolower(countryISO3C))) %>%
     httr2:::dots_to_path()
-  url <- url_build(structure(list(scheme = "https",
+  url <- httr2::url_build(structure(list(scheme = "https",
                                   hostname = "data.worldpop.org",
                                   path = urlPath),
                              class = "httr2_url"))
 
   ## Download the GeoTIFF file if it doesn't already exist.
-  if (!file.exists(here(folder, basename(url)))) {
-    download.file(url, here(folder, basename(url)), mode = "wb")
+  if (!file.exists(here::here(folder, basename(url)))) {
+    download.file(url, here::here(folder, basename(url)), mode = "wb")
   }
 
-  here(folder, basename(url))
+  here::here(folder, basename(url))
 }
 
 ##' Returns a SpatVector for the requested country on demand, either retrieving
@@ -77,17 +69,30 @@ downloadWorldPopData <- function(countryISO3C, folder = here("data", "geotiff"))
 ##' @title Retrieve a SpatRaster of level 1 boundaries from local or remote disk
 ##' @param countryISO3C The uppercase ISO three character code a recognized
 ##'   country.
+##' @param folder The path where GADM data should be found or stored; passed on
+##'   to geodata::gadma.
 ##' @returns SpatVector
-##' @author Bryce
-lvl1AdminBorders <- function(ISO3C) {
-  geodata::gadm(country = ISO3C,
-                level = 1,
-                path = here("data", "gadm",
-                            sprintf("gadm36_%s_1_sp.rds", tolower(ISO3C))),
-                version = "3.6",
-                resolution = 1,
-                destfile = here("data", "gadm",
-                                sprintf("gadm36_%s_1_sp.rds", tolower(ISO3C))))
+##' @author Bryce Carson
+##' @export
+##' @examples
+##' geodata_path_backup <- geodata_path()
+##' options(geodata_default_path = tempdir())
+##' lvl1AdminBorders("COD")
+##' options(geodata_default_path = geodata_path_backup)
+##'
+##' \dontrun{
+##' ## It's recommended to set geodata_default_path rather than explicitly set
+##' ## the path
+##' lvl1AdminBorders("COD", file.path("data", "gadm"))
+##' }
+lvl1AdminBorders <- function(countryISO3C, folder = geodata_path()) {
+  geodata::gadm(
+    country = countryISO3C,
+    level = 1,
+    path = folder,
+    version = "3.6",
+    resolution = 1
+  )
 }
 
 ##' Create a named RasterLayer object useful for spatiotemporal epidemic
@@ -95,16 +100,27 @@ lvl1AdminBorders <- function(ISO3C) {
 ##' @title Create a Susceptible-component RasterLayer
 ##' @param countryISO3C The uppercase ISO three character code a recognized
 ##'   country.
+##' @param folder Passed on to method downloadWorldPopData
 ##' @returns A RasterLayer of WorldPop population count data with the name
 ##'   Susceptible, with all NAs replaced by zeros.
 ##' @author Bryce Carson
 ##' @author Michael Myer
 ##' @author Ashok Krishnmaurthy
+##' @export
 ##' @examples
+##' geodata_path_backup <- geodata_path()
+##' options(geodata_default_path = tempdir())
 ##' getCountryPopulation.SpatRaster("COD")
-getCountryPopulation.SpatRaster <- function(countryISO3C) {
-  rast(downloadWorldPopData(countryISO3C)) %>%
-    replace(., is.na(.), 0) %>% # . is a magrittr placeholder for the piped data.
+##' options(geodata_default_path = geodata_path_backup)
+getCountryPopulation.SpatRaster <- function(countryISO3C, folder = NULL) {
+  countryRaster <-
+    if(is.null(folder)) {
+      terra::rast(downloadWorldPopData(countryISO3C))
+    } else {
+      terra::rast(downloadWorldPopData(countryISO3C, folder))
+    }
+
+  replace(countryRaster, is.na(countryRaster), 0) %>%
     `names<-`("Susceptible")
 }
 
@@ -114,22 +130,27 @@ getCountryPopulation.SpatRaster <- function(countryISO3C) {
 ##' @param countryISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param level1Region The subregions of the country to crop to
-##' @param folder The folder which should be searched for the GADM data
+##' @param folder The folder which should be searched for the GADM data, passed
+##'   on to lvl1AdminBorders.
 ##' @returns SpatVector for the specificed country.
 ##' @author Bryce Carson
+##' @export
 ##' @examples
-##' getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri"), here("data", "gadm"))
+##' geodata_path_backup <- geodata_path()
+##' options(geodata_default_path = tempdir())
+##' getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri"))
 ##' getCountrySubregions.SpatVector("CZE", "Prague")
 ##' getCountrySubregions.SpatVector("NGA", "Kwara")
+##' options(geodata_default_path = geodata_path_backup)
 getCountrySubregions.SpatVector <- function(countryISO3C = "COD",
                                             level1Region = c("Nord-Kivu", "Ituri"),
-                                            folder = here("data", "gadm")) {
+                                            folder) {
   stopifnot(countryISO3C %in% countrycode::codelist$iso3c)
   ## Read data from the gadm folder corresponding to the country. ## NOTE: 1_sp
   ## refers to the fact that this RDS file contains 1km aggregated spatial data.
   ## here(folder, sprintf("gadm36_%s_1_sp.rds", toupper(countryISO3C))) %>%
   ##   readRDS() %>%
-  lvl1AdminBorders(countryISO3C) %>%
+  lvl1AdminBorders(countryISO3C, folder) %>%
     subset(.$NAME_1 %in% level1Region)
 }
 
@@ -151,18 +172,30 @@ getCountrySubregions.SpatVector <- function(countryISO3C = "COD",
 ##'   getCountrySubregions.SpatVector
 ##' @param susceptible SpatRaster or SpatVector to be masked by GADM data
 ##'   of the country
+##' @export
+##' @keywords internal
 ##' @examples
-##' subregions <- getCountrySubregions.SpatVector("COD",
-##'                            c("Nord-Kivu", "Ituri"),
-##'                            here("data", "gadm"))
-##' susceptible <- getCountryPopulation.SpatRaster("COD")
-##' result <- maskAndClassifySusceptibleSpatRaster(subregions = subregions,
-##'                                                susceptible = susceptible)
-##' plot(result)
+##' subregionsSpatVector <- terra::vect(
+##'   system.file(
+##'     "extdata",
+##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+##'     "subregionsSpatVector",
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' susceptibleSpatRaster <- terra::rast(
+##'   system.file(
+##'     "extdata",
+##'     "susceptibleSpatRaster.tif", # Congo population
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' levelplot(maskAndClassifySusceptibleSpatRaster(subregionsSpatVector,
+##'                                                susceptibleSpatRaster))
 ##'
-##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri")),
-##'                                      getCountryPopulation.SpatRaster("COD"))
-##'
+##' \dontrun{
 ##' maskAndClassifySusceptibleSpatRaster(getSubregion("CZE", "Prague"),
 ##'                                      getCountryPopulation.SpatRaster("CZE"))
 ##'
@@ -174,8 +207,9 @@ getCountrySubregions.SpatVector <- function(countryISO3C = "COD",
 ##'
 ##' maskAndClassifySusceptibleSpatRaster(getSubregion("COD", c("Nord-Kivu", "Ituri")),
 ##'                                      getCountryPopulation.SpatRaster("COD"))
+##' }
 maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
-  crs(subregions) <- crs(susceptible, proj = TRUE)
+  terra::crs(subregions) <- terra::crs(susceptible, proj = TRUE)
 
   ## NOTE: these two values were betwixt the call of rast and classify, which
   ## are only piped to remove the use of an unnecssary assignment whilst these
@@ -192,16 +226,16 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
   ##            xmax(susceptibleMaskedBySubregion))
 
   ## Mask the susceptible SpatRaster by the subregions SpatRaster
-  crop(susceptible, subregions, mask = TRUE) %>%
+  terra::crop(susceptible, subregions, mask = TRUE) %>%
   ## NOTE: this is refactored, but untested. NOTE: this seems to classify the
   ## values as 1:7, if they have a value between the bin lower limits; that is,
   ## bin the values into classes delineated by the given vector of minimums for
   ## the bins.
-  classify(c(0, 10, 25, 50, 100, 250, 1000, 10000)) %>%
+  terra::classify(c(0, 10, 25, 50, 100, 250, 1000, 10000)) %>%
     "levels<-"(levels(.)[[1]])
 }
 
-##' @title Create a RasterStack of SVEIRD model compartment raster data
+##' @title Create a SpatRaster of SVEIRD model compartment raster data
 ##' @description Create a list of SpatRaster objects, one for each component in
 ##'   an SVEIRD epidemic model.
 ##' @details The SpatRaster objects for the VEIRD components are empty, while
@@ -217,37 +251,51 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
 ##' @author Bryce Carson
 ##' @author Michael Myer
 ##' @author Ashok Krishnmaurthy
+##' @export
 ##' @examples
-##' getSVEIRD.SpatRaster(getCountrySubregions.SpatVector("COD",
-##'                                                      c("Ituri", "Nord-Kivu")),
-##'                      getCountryPopulation.SpatRaster("COD"),
+##' subregionsSpatVector <- terra::vect(
+##'   system.file(
+##'     "extdata",
+##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+##'     "subregionsSpatVector",
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' susceptibleSpatRaster <- terra::rast(
+##'   system.file(
+##'     "extdata",
+##'     "susceptibleSpatRaster.tif", # Congo population
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster,
 ##'                      aggregationFactor = 35)
 ##'
 ##' ## Omitting the aggregation factor argument will prevent aggregation. An
 ##' ## aggregation factor of zero or one is meaningless and will produce an
 ##' ## error.
-##' getSVEIRD.SpatRaster(getCountrySubregions.SpatVector("COD",
-##'                                                      c("Ituri", "Nord-Kivu")),
-##'                      getCountryPopulation.SpatRaster("COD"))
+##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
 getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NULL) {
   susceptible <- maskAndClassifySusceptibleSpatRaster(subregions, susceptible)
 
   if (!is.null(aggregationFactor)) {
-    susceptible <- aggregate(susceptible, aggregationFactor)
+    susceptible <- terra::aggregate(susceptible, aggregationFactor)
   }
 
   ## MAYBE FIXME: I'd be surprised if any of the values were negative, but it's
   ## okay to retain this.
-  values(susceptible)[values(susceptible) < 0] <- 0
+  terra::values(susceptible)[terra::values(susceptible) < 0] <- 0
 
   Inhabited <- susceptible
-  values(Inhabited)[values(Inhabited) > 0] <- 1
-  values(Inhabited)[values(Inhabited) < 1] <- 0
+  terra::values(Inhabited)[terra::values(Inhabited) > 0] <- 1
+  terra::values(Inhabited)[terra::values(Inhabited) < 1] <- 0
 
   ## The values are EXACTLY equal, so I won't use this faster code.
   ## Inhabited <- classify(susceptible, matrix(c(c(-Inf, 1, 0), c(0, Inf, 1)), nrow = 2, byrow = TRUE))
 
-  empty <- init(susceptible, fun = 0)
+  empty <- terra::init(susceptible, fun = 0)
   c(susceptible, rep(empty, 5), Inhabited) %>%
     "names<-"(c("Susceptible",
                 "Vaccinated",
@@ -284,8 +332,13 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
 ##' @param aggregationFactor the degree of aggregation applied to the raster
 ##'   data mentioned in the function details.
 ##' @returns a matrix of the average Euclidean distances
+##' @export
+##' @keywords internal
 ##' @author Bryce Carson
 ##' @author Thomas White
+##' @examples
+##' avgEuclideanDistance(radius = 1, lambda = 15)
+##' avgEuclideanDistance(radius = 1, lambda = 15, aggregationFactor = 35)
 avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
   ## NOTE: “I have a philosophical and geometric question about these
   ## identities: what do they imply about the dimension and magnitude of the
@@ -303,10 +356,10 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
   avg.euc.dist <- function(i, j) {
     exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
   }
-  mutate(df, avgEuclideanDistance = map2_dbl(i, j, avg.euc.dist)) %>%
+  dplyr::mutate(df, avgEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)) %>%
     dplyr::select(avgEuclideanDistance) %>%
     unlist(use.names = FALSE) %>%
-    matrix(byrow = TRUE, ncols = sqrt(length(.)))
+    base::matrix(byrow = TRUE, ncols = sqrt(length(.)))
 }
 
 ##' @title Weighted Sums
@@ -325,12 +378,15 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
 ##'   exposed individuals who will become infectious.
 ##' @author Bryce Carson
 ##' @author Thomas White
+##' @export
+##' @keywords internal
 ##' @examples
+##' ## TODO FIXME
 ##' terra::as.matrix(Infected, wide = TRUE) %>%
 ##'   transmissionLikelihoodWeightings(30, 15, 35)
 transmissionLikelihoodWeightings <-
   function(infections, radius, lambda, aggregationFactor) {
-    focal(infections, avgEuclideanDistance(radius, lambda, aggregationFactor))
+    terra::focal(infections, avgEuclideanDistance(radius, lambda, aggregationFactor))
   }
 
 ##' @title Linear (Forward) Interpolation Operator matrices for one or two state
@@ -392,26 +448,34 @@ transmissionLikelihoodWeightings <-
 ##' @author Bryce Carson
 ##' @author Ashok Krishnmaurthy
 ##' @author Michael Myer
+##' @export
+##' @keywords internal
 ##' @examples
+##' subregionsSpatVector <- terra::vect(
+##'   system.file(
+##'     "extdata",
+##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+##'     "subregionsSpatVector",
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' susceptibleSpatRaster <- terra::rast(
+##'   system.file(
+##'     "extdata",
+##'     "susceptibleSpatRaster.tif", # Congo population
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
 ##' healthZonesCongo <- read.csv(here("data",
 ##'                                   "observed",
 ##'                                   "Ebola_Health_Zones_LatLon.csv"))
-##' subregionsSpatRaster <-
-##'   getCountrySubregions.SpatVector("COD", c("Ituri", "Nord-Kivu"))
 ##' linearInterpolationOperator(
-##'   layers = getSVEIRD.SpatRaster(subregionsSpatRaster,
-##'                                 getCountryPopulation.SpatRaster("COD"),
+##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                 susceptibleSpatRaster,
 ##'                                 aggregationFactor = 35),
-##'   healthZoneCoordinates = healthZonesCongo,
-##'   compartmentsReported = 1
-##' )
-##'
-##' linearInterpolationOperator(
-##'   layers = getSVEIRD.SpatRaster(subregionsSpatRaster,
-##'                                 getCountryPopulation.SpatRaster("COD"),
-##'                                 aggregationFactor = 35),
-##'   healthZoneCoordinates = healthZonesCongo,
-##'   compartmentsReported = 2
+##'   healthZoneCoordinates = healthZonesCongo
 ##' )
 linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartmentsReported = 1) {
   ## A second order neighbour can't be calculated with the current algorithm if
@@ -442,14 +506,14 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   }
 
   extend.length <- 5
-  layers <- extend(layers, extend.length)
+  layers <- terra::extend(layers, extend.length)
 
   ## NOTE: cells contains the index into the rasters in layers (when converted
   ## to a matrix). MAYBE FIXME: The coordinates are re-ordered as
   ## longitude-latitude, rather than latitude-longitude as they are otherwise
   ## stored; the reason is due to the generation of NAs in the resulting matrix,
   ## otherwise, according to the previous implementation.
-  cells <- cellFromXY(layers, as.matrix(healthZoneCoordinates[, 3:2]))
+  cells <- terra::cellFromXY(layers, terra::as.matrix(healthZoneCoordinates[, 3:2]))
   if (anyDuplicated(cells) > 0)
     warning("Duplicate cell indices in cells vector derived from health zone coordinates.")
   if (any(is.na(cells)))
@@ -461,7 +525,7 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   ## q ✕ p, where p is the number of cells in the SpatRaster layers (nrow *
   ## ncols), and q is the number of health zones; i.e., the dimensions of the
   ## matrix are n health zones ✕ m cells in the SpatRaster.
-  H.extended <- matrix(0, nrow(healthZoneCoordinates), ncell(layers))
+  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), ncell(layers))
 
   ## NOTE: these are the weightings used for the chess queen 🨁 zeroth, first,
   ## and second order neighbors. The zeroth order neighbor is the position of
@@ -476,16 +540,16 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   ## zone, so the index corresponds to the health zone and the cell for that
   ## health zone.
   for (index in seq_along(cells)) {
-    neighbour.1st <- queensNeighbours(1, cells[index], ncol(layers))
-    neighbour.2nd <- queensNeighbours(2, cells[index], ncol(layers))
+    neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers))
+    neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers))
     if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
       simpleError("Duplicate cell indices among neighbours of multiple localities.")
     H.extended[index, cells[index]] <- neighbour.weights[1]
-    H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= ncell(layers)]] <- neighbour.weights[2]
-    H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= ncell(layers)]] <- neighbour.weights[3]
+    H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
+    H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
   }
 
-  if (compartmentsReported == 2) H.extended <- bdiag(H.extended, H.extended) # block diagonal matrix
+  if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended) # block diagonal matrix
   ## NOTE: these are unused, so they are commented out. For historical reasons, they are included.
   ## attr(H.extended, "healthZoneCoordinates") <- healthZoneCoordinates
   ## attr(H.extended, "layers") <- dim(layers)[3]
@@ -498,11 +562,11 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
         FUN =
           function(row) {
             m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-            m[(extend.length + 1):(nrow(m) - extend.length),
-              (extend.length + 1):(ncol(m) - extend.length)] %>%
-              t() %>% # row-major order (byrow)
+            m[(extend.length + 1):(terra::nrow(m) - extend.length),
+              (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
+              Matrix::t() %>% # row-major order (byrow)
               as.vector()
-          }) %>% t() # rows should be health zones
+          }) %>% Matrix::t() # rows should be health zones
 }
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
@@ -521,34 +585,45 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
 ##' @author Ashok Krishnmaurthy
 ##' @author Michael Myer
 ##' @author Thomas White
+##' @export
+##' @keywords internal
 ##' @examples
-##' CongoleseLayers <-
-##'   getSVEIRD.SpatRaster(getCountrySubregions.SpatVector("COD",
-##'                                                        c("Ituri",
-##'                                                          "Nord-Kivu")),
-##'                        getCountryPopulation.SpatRaster("COD"),
-##'                        35)
-##' Ituri.Q.forecastErrorCov <- Q.forecastErrorCov(CongoleseLayers, "DBD", 2, 0.8, 4, 2)
-##'
-##' Alberta.SpatVector <- getCountrySubregions.SpatVector("CAN", c("Alberta"))
-##' Alberta.SpatRaster <- getCountryPopulation.SpatRaster("CAN")
-##' AlbertanLayers <- getSVEIRD.SpatRaster(Alberta.SpatVector, Alberta.SpatRaster, 35)
-##' Alberta.Q.forecastErrorCov <- Q.forecastErrorCov(AlbertanLayers, "DBD", 2, 0.8, 4, 2)
+##' subregionsSpatVector <- terra::vect(
+##'   system.file(
+##'     "extdata",
+##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+##'     "subregionsSpatVector",
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' susceptibleSpatRaster <- terra::rast(
+##'   system.file(
+##'     "extdata",
+##'     "susceptibleSpatRaster.tif", # Congo population
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                susceptibleSpatRaster,
+##'                                aggregationFactor = 35)
+##' Ituri.Q.forecastErrorCov <- Q.forecastErrorCov(layers, "DBD", 2, 0.8, 4, 2)
 Q.forecastErrorCov <- function(layers,
                                variableCovarianceFunction,
                                Q.backgroundErrorStandardDeviation,
                                Q.characteristicCorrelationLength,
                                neighbourhood,
                                compartmentsReported = 2) {
-  ncols <- ncol(layers)
-  numberOfCells <- ncell(layers)
+  ncols <- terra::ncol(layers)
+  numberOfCells <- terra::ncell(layers)
   Q <- matrix(0, numberOfCells, numberOfCells) # (rows ✕ columns)² sparse
-  rows <- rep(1:nrow(layers), each = ncols) # 111 ... 222 ... 333
-  cols <- rep(1:ncols, times = nrow(layers)) # 123 ... 123 ... 123
+  rows <- rep(1:terra::nrow(layers), each = ncols) # 111 ... 222 ... 333
+  cols <- rep(1:ncols, times = terra::nrow(layers)) # 123 ... 123 ... 123
   point.a <- matrix(rep(rows, length(rows)), nrow = numberOfCells, byrow = TRUE)
   point.b <- matrix(rep(cols, length(cols)), nrow = numberOfCells, byrow = TRUE)
-  point.c <- t(point.a)
-  point.d <- t(point.b)
+  point.c <- Matrix::t(point.a)
+  point.d <- Matrix::t(point.b)
   ## This appears to the the Balgovind form of the correlation function 𝐂, as
   ## mentioned by Ashok here:
   ## https://codereview.stackexchange.com/questions/224536. The above lines
@@ -597,9 +672,9 @@ Valid function names are:
   ## Assign to cells of the sparse matrix where the decay function has a value
   ## less than neighbourhood.
   Q[d < neighbourhood] <- varCov.fun()[d < neighbourhood]
-  diag(Q) <- ifelse(diag(Q) == 0, Q.backgroundErrorStandardDeviation, diag(Q))
+  diag(Q) <- ifelse(Matrix::diag(Q) == 0, Q.backgroundErrorStandardDeviation, Matrix::diag(Q))
 
-  if (compartmentsReported == 2) Q <- bdiag(Q, Q)
+  if (compartmentsReported == 2) Q <- Matrix::bdiag(Q, Q)
 
   return(Q)
 }
@@ -608,24 +683,24 @@ Valid function names are:
 ##' doesn't need names like subset appears to need, and it allows passing
 ##' functions as values.
 ##'
-##' The value [z] is used to replace the vector elements with the provided value
+##' The value z is used to replace the vector elements with the provided value
 ##' z (zed).
 ##'
 ##' The vector subset, w, is subset with the function f of x and x, and z
-##' assigned to these elements. The whole function definition is simply:
-##' return(w[f(x, y)] <- z).
+##' assigned to these elements. See the function body for more details.
 ##' @title Replace logical vectors derived from inequalities with z value
 ##' @param f the binary operator function to use to calculate the logical vector
-##'   for subsetting [w].
+##'   for subsetting w.
 ##' @param w the vector to subset and subassign within.
-##' @param x the first argument of [f].
-##' @param y the second argument of [f].
-##' @param z the value to assign to the logical subset of [w].
-##' @returns [w], with the modified values, so that it can be used in a pipe.
+##' @param x the first argument of f.
+##' @param y the second argument of y (if applicable).
+##' @param z the value to assign to the logical subset of w.
+##' @returns w, with the modified values, so that it can be used in a pipe.
+##' @keywords internal
 ##' @author Bryce Carson
-replaceInequalityWith <- function(f, w, x, y, z) {
-  w[f(x, y)] <- z
-  w
+replaceInequalityWith <- function(f, w, x, y = NULL, z) {
+  if (!is.null(y)) return((w[f(x, y)] <- z))
+  else return((w[f(x)] <- z))
 }
 
 ##' @description Run a SVEIRD compartmental model of an epidemic, optionally
@@ -710,7 +785,8 @@ replaceInequalityWith <- function(f, w, x, y, z) {
 ##'   \preformatted{ Date Beni Butembo Mabalako Mandima 2018-08-05 34 34 34 34
 ##'     2018-08-12 2 0 11 1 2018-08-20 1 0 37 6 2018-08-26 5 0 3 0 2018-08-02 8
 ##'     0 1 1 2018-08-09 5 2 1 1 }
-##' @param deathsAndDeadData TODO
+##' @param deathData Data of the same format as incidenceData, but observations
+##'   represent deaths, not infections.
 ##' @param variableCovarianceFunction Passed directly to [Q.forecastErrorCov()] to generate a
 ##'   Q matrix.
 ##' @param Q.backgroundErrorStandardDeviation TODO
@@ -723,17 +799,28 @@ replaceInequalityWith <- function(f, w, x, y, z) {
 ##' @author Bryce Carson
 ##' @author Ashok Krishnmaurthy
 ##' @author Michael Myer
+##' @export
 ##' @examples
-##' healthZonesCongo <- read.csv(here("data",
-##'                                   "observed",
-##'                                   "Ebola_Health_Zones_LatLon.csv"))
-##' SpatRaster.CongoIturiNordKivu <-
-##'   getSVEIRD.SpatRaster(getCountrySubregions.SpatVector("COD", c("Itrui", "Nord-Kivu")),
-##'                        getCountryPopulation.SpatRaster("COD"),
-##'                        35)
-##' incidenceEbola.Congo <- read_xlsx(here("data", "observed", "Ebola_Incidence_Data.xlsx"))
-##' initialInfections.fourCities <- read.csv(here("data", "seed", "COD_InitialSeedData.csv"),
-##'                                          header = TRUE)
+##' subregionsSpatVector <- terra::vect(
+##'   system.file(
+##'     "extdata",
+##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+##'     "subregionsSpatVector",
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' susceptibleSpatRaster <- terra::rast(
+##'   system.file(
+##'     "extdata",
+##'     "susceptibleSpatRaster.tif", # Congo population
+##'     package = "spatialEpisim.foundation",
+##'     mustWork = TRUE
+##'   )
+##' )
+##' data("healthZonesCongo", package = "spatialEpisim.foundation")
+##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
+##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -747,11 +834,13 @@ replaceInequalityWith <- function(f, w, x, y, z) {
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   seedRadius = 1,
-##'   layers = SpatRaster.CongoIturiNordKivu,
+##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                 susceptibleSpatRaster,
+##'                                 aggregationFactor = 35),
 ##'   rasterAgg = 35,
 ##'   startDate = "2018-08-05",
 ##'   countryISO3C = "COD",
-##'   incidenceData = incidenceEbola.Congo,
+##'   incidenceData = Congo.EbolaIncidence,
 ##'   ## Model options
 ##'   dataAssimilationEnabled = TRUE,
 ##'   healthZoneCoordinates = healthZonesCongo,
@@ -760,8 +849,7 @@ replaceInequalityWith <- function(f, w, x, y, z) {
 ##'   Q.backgroundErrorStandardDeviation = 0.55,
 ##'   Q.characteristicCorrelationLength = 6.75e-1,
 ##'   neighbourhood = 3,
-##'   psi.diagonal = 1e-3,
-##'   compartmentsReported = 1
+##'   psi.diagonal = 1e-3
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters
@@ -783,7 +871,8 @@ SVEIRD.BayesianDataAssimilation <-
            rasterAgg,
            startDate,
            countryISO3C,
-           incidenceData,
+           incidenceData = NULL,
+           deathData = NULL,
 
            ## Model options
            simulationIsDeterministic = TRUE,
@@ -796,15 +885,10 @@ SVEIRD.BayesianDataAssimilation <-
            Q.characteristicCorrelationLength,
            neighbourhood,
            psi.diagonal,
-           compartmentsReported = 1,
 
            ## Monitoring and logging
            callback = `{`) {
-    ## TODO: implement stochasticity; afterwards the argument will have an
-    ## effect; before then, all simulations are deterministic, so the argument
-    ## is not used (yet).
-    .NotYetUsed("simulationIsDeterministic", error = FALSE)
-
+    compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
     ## Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summary".
     names <- c(## Population and epidemic compartments (states)
@@ -820,26 +904,26 @@ SVEIRD.BayesianDataAssimilation <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
 
-    tibble(N = numeric(n.days))
+    tibble::tibble(N = numeric(n.days))
 
     ## NOTE: HOW ARE THESE USED?
-    nrows <- nrow(layers)
-    ncols <- ncol(layers)
+    nrows <- terra::nrow(layers)
+    ncols <- terra::ncol(layers)
     p <- nrows * ncols # What is the meaning of p?
 
     ## NOTE: cast the seed data from the initial infections equitably, in a
     ## Moore Neighborhood of cells.
     seedData.equitable <-
-      group_by(seedData, Location) %>%
-      summarize(across(c("InitialExposed", "InitialInfections"),
+      dplyr::group_by(seedData, Location) %>%
+      dplyr::summarize(dplyr::across(c("InitialExposed", "InitialInfections"),
                        ## NOTE: the numerator is the exposed and infected
                        ## compartment; the denominator is a parabolic function
                        ## of the seedRadius.
                        function(x) x / (2 * seedRadius + 1)^2)) %>%
-      right_join(seedData, by = join_by(Location))
+      dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
     for (location in seedData.equitable$Location) {
-      data <- subset(seedData.equitable, Location == location)
+      data <- base::subset(seedData.equitable, Location == location)
 
       ## Get row and column numbers from the latitude and longitude for this
       ## health region.
@@ -863,22 +947,22 @@ SVEIRD.BayesianDataAssimilation <-
     ## are, provide semantics for the components: e.g. accessing the
     ## proportion$vaccinated, or the proportion$exposed, is self-describing.
     proportion <-
-      map_dbl(c(vaccinated = layers$Vaccinated,
+      purrr::map_dbl(c(vaccinated = layers$Vaccinated,
                 exposed = layers$Exposed,
                 infected = layers$Infected,
                 recovered = layers$Recovered,
                 dead = layers$Dead),
               function(otherCompartment, susceptibleCompartment) {
-                sum(values(otherCompartment)) / susceptibleCompartment
+                sum(terra::values(otherCompartment)) / susceptibleCompartment
               },
               ## NOTE: Supplying the sum of the values of the susceptible compartment
               ## as an extra argument passed to the anonymous function ensures
               ## that its value is only calculated once.
-              susceptibleCompartment = sum(values(layers$Susceptible)))
+              susceptibleCompartment = sum(terra::values(layers$Susceptible)))
 
     ## Calculate the actual number of people that have moved to other compartments
     ## and subtract these from the original Susceptible compartment count.
-    values(layers$Susceptible) %<>% sum(as.matrix(layers$Susceptible) * -proportion)
+    terra::values(layers$Susceptible) %<>% sum(terra::as.matrix(layers$Susceptible) * -proportion)
 
     if (dataAssimilationEnabled) {
       ## MAYBE TODO: resurrect some, a lot, or all of the other print statements
@@ -915,7 +999,7 @@ SVEIRD.BayesianDataAssimilation <-
                               Q.characteristicCorrelationLength,
                               neighbourhood,
                               compartmentsReported)
-      QHt <- Q %*% t(linearInterpolationMatrix)
+      QHt <- Q %*% Matrix::t(linearInterpolationMatrix)
       HQHt <- linearInterpolationMatrix %*% QHt
 
       ## NOTE: this is based on old, dead code from the previous implementation,
@@ -926,7 +1010,7 @@ SVEIRD.BayesianDataAssimilation <-
       ## stopifnot(sum(eigen(Q)$values) == ncell(layers))
     }
 
-    ## NOTE: preallocate the list which will hold a timeseries of RasterStack
+    ## NOTE: preallocate the list which will hold a timeseries of SpatRaster
     ## objects.
     layers.timeseries <- vector(mode = "list", length = n.days)
 
@@ -1001,7 +1085,7 @@ SVEIRD.BayesianDataAssimilation <-
 
       growth <- beta * proportionSusceptible * transmissionLikelihoods
       newExposed <- growth %>%
-        if(simulationIsDetermistic) growth else rpois(1, growth)
+        if(simulationIsDetermistic) growth else stats::rpois(1, growth)
 
       newExposed[c(susceptibleMatrix < 1) || transmissionLikelihoods < 1] <- 0
 
@@ -1040,7 +1124,7 @@ SVEIRD.BayesianDataAssimilation <-
       ## there's a better way than this to collect the SpatRasters for each day
       ## in the time series; find that way and implement it.
       with({
-        tibble(Susceptible = layerWideMatrices$Susceptible -
+        tibble::tibble(Susceptible = layerWideMatrices$Susceptible -
                  newExposed -
                  newVaccinated,
 
@@ -1056,7 +1140,7 @@ SVEIRD.BayesianDataAssimilation <-
                Recovered = layerWideMatrices$Recovered + newRecovered,
 
                Dead = layerWideMatrices$Dead + newDead) %>%
-          mutate(across(Susceptible:Dead,
+          dplyr::mutate(dplyr::across(Susceptible:Dead,
                         ## NOTE: this is a purrr-style lambda.
                         ~ replaceInequalityWith(`<`,
                                                 .x,
@@ -1066,8 +1150,8 @@ SVEIRD.BayesianDataAssimilation <-
           as.list() %>%
           lapply(rast) %>%
           lapply(function(component) {
-            "ext<-"(component, RasterStack)
-            "crs<-"(component, RasterStack)
+            terra::"ext<-"(component, layers)
+            terra::"crs<-"(component, layers)
           })
       }, {
         layers$Susceptible <- Susceptible
@@ -1096,7 +1180,11 @@ SVEIRD.BayesianDataAssimilation <-
         ## NOTE: see "Conjecture (Ⅰ)" in "Notes about covariance matrices" in
         ## the Google Drive folder for information on the motivation for
         ## transposing the matrix twice.
-        Xf.OSI <- Infected %>% t() %>% as.vector() %>% t() %>% t()
+        Xf.OSI <- Infected %>%
+          Matrix::t() %>%
+          as.vector() %>%
+          Matrix::t() %>%
+          Matrix::t()
 
         HXf <- linearInterpolationMatrix %*% Xf.OSI
 
@@ -1108,11 +1196,11 @@ SVEIRD.BayesianDataAssimilation <-
 
         ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
         ## are assimilated.
-        Ke.OSI <- QHt %*% matrix::solve(HQHt + diag(D.v))
+        Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v))
 
         ## NOTE: Optimal statistical inference update step: analyze state? THEM:
         ## "OSI update step: analysis state".
-        Xa.OSI <- Xf.OSI + Ke.OSI %*% (t(t(D.v)) - HXf) %>%
+        Xa.OSI <- Xf.OSI + Ke.OSI %*% (Matrix::t(Matrix::t(D.v)) - HXf) %>%
           replaceInequalityWith(f = `<`, 0, 0)
 
         ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
@@ -1120,7 +1208,7 @@ SVEIRD.BayesianDataAssimilation <-
         ## when restacking make sure byrow = TRUE.
         I <- matrix(Xa.OSI[seq(p)],
                     nrow = nrows,
-                    ncols = ncols,
+                    ncol = ncols,
                     byrow = TRUE)
 
         ## NOTE: if an area is uninhabitable replace its value with zero; it
