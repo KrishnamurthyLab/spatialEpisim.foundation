@@ -1152,5 +1152,6 @@ SVEIRD.BayesianDataAssimilation <-
     ## that the value is zero (no fatalities, infections, exposures, et cetera),
     ## but why would it be NA (missing) or NaN (not a number)?
     summaryTable[is.na(summaryTable)] <- 0
-    return(summaryTable)
+    return(list(table = tibble::as_tibble(summaryTable),
+                rast = layers))
   }
