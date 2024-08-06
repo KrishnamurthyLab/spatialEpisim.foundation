@@ -773,6 +773,7 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'   disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 ##'   parameter to be one week prior to the first observed data?
 ##'
+##' TODO: fix the formatting here. What happened to my beautiful table?
 ##'   \preformatted{ Date Beni Butembo Mabalako Mandima 2018-08-05 34 34 34 34
 ##'     2018-08-12 2 0 11 1 2018-08-20 1 0 37 6 2018-08-26 5 0 3 0 2018-08-02 8
 ##'     0 1 1 2018-08-09 5 2 1 1 }
@@ -785,7 +786,7 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##' @param neighbourhood TODO
 ##' @param callback a callback function to run, with no arguments, which will be
 ##'   called every time the main loop of the simulation iterates.
-##' @returns a summary dataframe for the simulation, showing changes in the
+##' @returns a summaryTable dataframe for the simulation, showing changes in the
 ##'   compartment values over time, the daily values, and cumulative values.
 ##' @author Bryce Carson
 ##' @author Ashok Krishnmaurthy
@@ -883,7 +884,7 @@ SVEIRD.BayesianDataAssimilation <-
     compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
 
     ## Preallocate a zeroed data frame with the following column names, and
-    ## store it in a symbol named "summary".
+    ## store it in a symbol named "summaryTable".
     names <- c(## Population and epidemic compartments (states)
                "N", "S", "V", "E", "I", "R", "D",
                ## Daily values of new vaccinations, exposures, infections,
@@ -892,7 +893,7 @@ SVEIRD.BayesianDataAssimilation <-
                ## Cumulative values of exposed or infected people through the
                ## simulation runtime
                "cumE", "cumI")
-    summary <-
+    summaryTable <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
 
@@ -908,7 +909,6 @@ SVEIRD.BayesianDataAssimilation <-
       dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
     for (seedingLocation in seedData.equitable$Location) {
-      ## data <- base::subset(seedData.equitable, Location == seedingLocation)
       data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
 
       ## Get row and column numbers from the latitude and longitude for this
@@ -921,45 +921,18 @@ SVEIRD.BayesianDataAssimilation <-
         columnRange <- seq(from = col - seedRadius, to = col + seedRadius)
 
         layers$Vaccinated[row, col]            <- data$InitialVaccinated
-        layers$Exposed[rowRange, columnRange]  %<>% sum(data$InitialExposed.x)
-        layers$Infected[rowRange, columnRange] %<>% sum(data$InitialInfections.x)
+        layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x
+        layers$Infected[rowRange, columnRange] <- data$InitialInfections.x
         layers$Recovered[row, col]             <- data$InitialRecovered
         layers$Dead[row, col]                  <- data$InitialDead
       }
     }
 
-    ## MAYBE FIXME: why are there two conceptions of proportionOfSusceptible? All
-    ## compartments are calculated here as the proportionOfSusceptible they are of the
-    ## susceptible compartment, but not as the proportionOfSusceptible of those who will
-    ## leave the compartment (which is parameterized and calculated differently
-    ## for each state transition).
-    ##
-    ## Calculate the proportionOfSusceptible of people who will move from the susceptibile
-    ## compartment to another compartment. NOTE: the names, exactly as they
-    ## are, provide semantics for the components: e.g. accessing the
-    ## proportionOfSusceptible$vaccinated, or the proportionOfSusceptible$exposed, is self-describing.
-    proportionOfSusceptible <-
-      purrr::map_dbl(c(vaccinated = layers$Vaccinated,
-                       exposed = layers$Exposed,
-                       infected = layers$Infected,
-                       recovered = layers$Recovered,
-                       dead = layers$Dead),
-                     function(otherCompartment, susceptibleCompartment) {
-                       sum(as.vector(otherCompartment), na.rm = TRUE) / susceptibleCompartment
-                     },
-                     ## NOTE: Supplying the sum of the values of the susceptible compartment
-                     ## as an extra argument passed to the anonymous function ensures
-                     ## that its value is only calculated once.
-                     susceptibleCompartment = sum(as.vector(layers$Susceptible), na.rm = TRUE))
-    stopifnot(all(!is.nan(proportionOfSusceptible)))
-
-    ## NOTE: calculate the actual number of people that HAVE moved to other
-    ## compartments and subtract these from the original Susceptible compartment
-    ## count. MAYBE FIXME: this needs validation, given the calculation of the
-    ## state transitions later on... are the numbers modified twice?
-    terra::values(layers$Susceptible) <-
-      sum(layers$Susceptible, na.rm = TRUE) %>%
-      sum(. * -proportionOfSusceptible, na.rm = TRUE)
+    adjustedSusceptible <- layers$Susceptible - layers$Vaccinated - layers$Exposed - layers$Infected - layers$Recovered - layers$Dead
+    message(sprintf("Adjusting the susceptible layer to account for seeded epidemic compartments…\nSusceptible before seeding = %s\nSusceptible after seeding = %s\n",
+                    global(layers$Susceptible, sum, na.rm = TRUE),
+                    global(adjustedSusceptible, sum, na.rm = TRUE)))
+    layers$Susceptible <- adjustedSusceptible
 
     if (dataAssimilationEnabled) {
       ## Generate the linear interpolation operator matrix (function works for
@@ -1023,25 +996,21 @@ SVEIRD.BayesianDataAssimilation <-
       ## using. The arguments should be provided as a list.
       callback() # Run the callback function, or NULL expression.
 
-      susceptibleSum <- sum(layers$Susceptible, na.rm = TRUE)
-      counts <- susceptibleSum * proportionOfSusceptible
-      population <- sum(susceptibleSum, counts, -layers$Dead); stopifnot(length(population) == 1)
+      compartments <- subset(layers, "Inhabited", negate = TRUE)
+      compartments$Dead %<>% "*"(-1)
+      compartments %<>% global(sum, na.rm = TRUE)
 
-      ## Set NSVEI counts in the summary table.
-      ## TODO: the entire column can be calculated one time and added to the
-      ## summary data at the end of the function.
-      ## summary[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
-      summary[today, 2] <- round(population)
-      summary[today, 3] <- round(susceptibleSum)
-      summary[today, 4] <- round(counts[1])
-      ## Columns five and six of the summary contain the exposed and infectious
-      ## portions of prevalence (active exposed or infected cases, respectively)
-      ## at time "today".
-      summary[today, 5] <- round(counts[2])
-      summary[today, 6] <- round(counts[3])
+      ## Set NSVEI counts in the summaryTable table; the date column is calculated later.
+      summaryTable[today, 1] <- round(sum(compartments[-6, ], na.rm = TRUE)) # DONT include the dead.
+      summaryTable[today, 2] <- round(compartments["Susceptible", ])
+      summaryTable[today, 3] <- round(compartments["Vaccinated", ])
+      summaryTable[today, 4] <- round(compartments["Exposed", ])
+      summaryTable[today, 5] <- round(compartments["Infected", ])
+      summaryTable[today, 6] <- round(compartments["Recovered", ])
+      summaryTable[today, 7] <- round(compartments["Dead", ])
 
-      ## The population is the sum of the susceptible, exposed, infected, and
-      ## recovered compartments.
+      ## The population is the sum of the susceptible, vaccinated, exposed,
+      ## infected, and recovered compartments.
       numberLiving <- sum(subset(layers, c("Dead", "Inhabited"), negate = TRUE))
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
@@ -1064,7 +1033,7 @@ SVEIRD.BayesianDataAssimilation <-
 
       ## TODO: stochasticity is not properly implemented yet; it was not fully
       ## supported in the previous implementation. It's likely that using
-      ## stochasticity now will produce an error.
+      ## stochasticity now will (still) produce an error.
       newExposed <- if(simulationIsDeterministic) growth else stats::rpois(1, growth)
       ## NOTE: any indices of these objects which were less than one will be the
       ## same indices that are set to zero in the newExposed object.
@@ -1078,14 +1047,17 @@ SVEIRD.BayesianDataAssimilation <-
       ## TODO: this is bad practice; the cumulative infected should, ideally, be
       ## summarized from daily infected data later on, but cumulative infected
       ## is used later on in the simulation algorithm before it ends and before
-      ## the mentioend summary values could be calculated in the mentioned
+      ## the mentioend summaryTable values could be calculated in the mentioned
       ## alternative practice. I'm not sure how to resolve this, or whether it
       ## SHOULD be.
-      if (!exists("cumulativeInfected")) cumulativeInfected <- 0
-      cumulativeInfected <- sum(cumulativeInfected, newInfected)
-
-      summary[today, 8] <- round(sum(layers$Dead))
-      summary[today, 15] <- round(cumulativeInfected)
+      ## if (!exists("cumulativeInfected")) {
+      ##   cumulativeInfected <- 0 + global(newInfected, sum, na.rm = TRUE)
+      ## } else {
+      ##   message("Printing cumulative infected...")
+      ##   message(cumulativeInfected)
+      ##   cumulativeInfected %<>% sum(global(newInfected, sum, na.rm = TRUE))
+      ## }
+      ## summaryTable[today, ncol(summaryTable)] <- round(cumulativeInfected)
 
       ## Some infectious people are going to either recover or die
       infectious <- reclassifyNegatives(layers$Infected + newInfected)
@@ -1095,16 +1067,18 @@ SVEIRD.BayesianDataAssimilation <-
       newDead <- reclassifyNegatives(delta * infectious)
       dailyDead <- sum(newDead)
 
-      values(layers$Susceptible) <- layers$Susceptible - newExposed - newVaccinated
-      values(layers$Vaccinated)  <- layers$Vaccinated  - newVaccinated
-      values(layers$Exposed)     <- layers$Exposed     + newExposed  - newInfected
-      values(layers$Infected)    <- layers$Infected    + newInfected - newDead - newRecovered
-      values(layers$Recovered)   <- layers$Recovered   + newRecovered
-      values(layers$Dead)        <- layers$Dead        + newDead
+      ## NOTE: each of these should be a SpatRaster, and thereby the arithmetic
+      ## is cell-by-cell.
+      layers$Susceptible <- layers$Susceptible - newExposed - newVaccinated;
+      layers$Vaccinated  <- layers$Vaccinated  - newVaccinated
+      layers$Exposed     <- layers$Exposed     + newExposed  - newInfected
+      layers$Infected    <- layers$Infected    + newInfected - newDead - newRecovered
+      layers$Recovered   <- layers$Recovered   + newRecovered
+      layers$Dead        <- layers$Dead        + newDead
 
       ## NOTE: assimilate observed data weekly, not more or less frequently,
       ## while there is still data to assimilate.
-      shouldAssimilateData <- all(dataAssimlationEnabled,
+      shouldAssimilateData <- all(dataAssimilationEnabled,
                                   today %% 7 == 0,
                                   datarow < nrow(incidenceData))
       if (shouldAssimilateData) {
@@ -1115,8 +1089,8 @@ SVEIRD.BayesianDataAssimilation <-
         Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
 
         Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-        ## TODO: this needs a more descriptive name; what is RAT? I forget already.
-        rat <- sum(terra::as.matrix(Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
+        ## TODO: this needs a more descriptive name; what is RAT? I forget already. 🐀
+        rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
         ## NOTE: see "Conjecture (Ⅰ)" in "Notes about covariance matrices" in
         ## the Google Drive folder for information on the motivation for
@@ -1129,18 +1103,18 @@ SVEIRD.BayesianDataAssimilation <-
 
         HXf <- linearInterpolationMatrix %*% Xf.OSI
 
-        ## Pick a row every 7 n.days, select third column through to the last
-        ## column; measurement error covariance matrix.
+        ## Pick a row every 7 n.days. NOTE: select third column through to the
+        ## last column by adding two the sequence. NOTE: create the measurement
+        ## error covariance matrix.
         D.v <- as.vector(incidenceData[datarow, 1:nrow(healthZoneCoordinates) + 2])
         D.v[D.v < 1] <- psi.diagonal
 
         ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
         ## are assimilated.
-        Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v))
+        Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v)) # MAYBE FIXME: is the point to just add psi.diagonal?
 
-        ## NOTE: Optimal statistical inference update step: analyze state? THEM:
-        ## "OSI update step: analysis state".
-        Xa.OSI <- Xf.OSI + Ke.OSI %*% (Matrix::t(Matrix::t(D.v)) - HXf)
+        ## THEM NOTE: Optimal statistical inference update step: analysis state.
+        Xa.OSI <- Xf.OSI + Ke.OSI %*% (as.numeric(D.v) - HXf)
         Xa.OSI[Xa.OSI < 0] <- 0
 
         ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
@@ -1160,18 +1134,23 @@ SVEIRD.BayesianDataAssimilation <-
         ## values for uninhabitable areas. MAYBE TODO: a raster with
         ## uninhabitable areas which can mask the susceptible and any other
         ## layer with NAs would be better than this.
-        I[valInhabitable == 0] <- 0
-        cumulativeInfected %<>% sum(I - Infected.prior); stopifnot(length(cumulativeInfected) == 1)
-        layers$Exposed <- rat * "values<-"(layers$Infected, I)
+        layers$Infected <- terra::mask("crs<-"("ext<-"(rast(I), ext(layers)), crs(layers)),
+                                       layers$Inhabited,
+                                       maskvalues = 0,
+                                       updatevalue = 0)
+        layers$Exposed <- rat * layers$Infected
       }
 
       layers.timeseries[[today]] <- layers
     }
 
+    ## TODO: the entire column can be calculated one time and added to the
+    ## summaryTable data at the end of the function.
+    ## summaryTable[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
     ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
-    ## always replace it in our summary table; for some variables it makes sense
+    ## always replace it in our summaryTable table; for some variables it makes sense
     ## that the value is zero (no fatalities, infections, exposures, et cetera),
     ## but why would it be NA (missing) or NaN (not a number)?
-    summary[is.na(summary)] <- 0
-    return(summary)
+    summaryTable[is.na(summaryTable)] <- 0
+    return(summaryTable)
   }
