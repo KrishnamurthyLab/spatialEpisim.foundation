@@ -35,7 +35,8 @@ suppressPackageStartupMessages({
 ##' @author Bryce Carson
 ##' @export
 ##' @examples
-##' downloadWorldPopData("COD", here("data", "geotiff"))
+##' library(here)
+##' downloadWorldPopData("COD", here::here("data", "geotiff"))
 downloadWorldPopData <- function(countryCodeISO3C, folder = here::here("data", "geotiff")) {
   ## Construct the path to the data on data.worldpop.org
   urlPath <-
@@ -85,7 +86,7 @@ downloadWorldPopData <- function(countryCodeISO3C, folder = here::here("data", "
 ##' ## the path
 ##' lvl1AdminBorders("COD", file.path("data", "gadm"))
 ##' }
-lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata_path()) {
+lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata::geodata_path()) {
   geodata::gadm(
     country = countryCodeISO3C,
     level = 1,
@@ -108,6 +109,7 @@ lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata_path()) {
 ##' @author Ashok Krishnmaurthy
 ##' @export
 ##' @examples
+##' library(geodata)
 ##' geodata_path_backup <- geodata_path()
 ##' options(geodata_default_path = tempdir())
 ##' getCountryPopulation.SpatRaster("COD")
@@ -342,7 +344,7 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
   ##   stopifnot(r == lambda + aggregationFactor)
 
   len <- seq_len(1 + radius * 2)
-  df <- tidyr::expand(tibble(i = len, j = len), i, j)
+  df <- tidyr::expand(tibble::tibble(i = len, j = len), i, j)
   avg.euc.dist <- function(i, j) {
     exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
   }
@@ -712,10 +714,10 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##' @param gamma The rate of becoming infectious (per day)
 ##' @param sigma The rate of recovery (per day)
 ##' @param delta The fatality rate (per day)
-##' @param radius The distance, in kilometers, a given individual travels from
-##'   their starting point (on average, per day)
+##' @param seedRadius The distance, in kilometers, a given individual travels from
+##'   their starting point (on average, per day).
 ##' @param lambda The probability that an individual will move the distance
-##'   governed by radius
+##'   governed by radius.
 ##' @param n.days The number of days the simulation will run for, beginning from
 ##'   the startDate.
 ##' @param seedData a dataframe like the following example; the compartment
@@ -727,7 +729,7 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'     1.35551 29.08173 0 0 0 0 0 }
 ##' @param seedRadius The number of cells over which to average the seed data in
 ##'   a Moore neighbourhood for each locality.
-##' @param imulationIsDeterministic Whether stochasticity is enabled or not; if
+##' @param simulationIsDeterministic Whether stochasticity is enabled or not; if
 ##'   the simulation is deterministic then no stochastic processes are used and
 ##'   the simulation is entirely deterministic.
 ##' @param dataAssimilationEnabled Whether Bayesian data assimilation will be
@@ -930,8 +932,8 @@ SVEIRD.BayesianDataAssimilation <-
 
     adjustedSusceptible <- layers$Susceptible - layers$Vaccinated - layers$Exposed - layers$Infected - layers$Recovered - layers$Dead
     message(sprintf("Adjusting the susceptible layer to account for seeded epidemic compartments…\nSusceptible before seeding = %s\nSusceptible after seeding = %s\n",
-                    global(layers$Susceptible, sum, na.rm = TRUE),
-                    global(adjustedSusceptible, sum, na.rm = TRUE)))
+                    terra::global(layers$Susceptible, sum, na.rm = TRUE),
+                    terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
     layers$Susceptible <- adjustedSusceptible
 
     if (dataAssimilationEnabled) {
@@ -996,9 +998,9 @@ SVEIRD.BayesianDataAssimilation <-
       ## using. The arguments should be provided as a list.
       callback() # Run the callback function, or NULL expression.
 
-      compartments <- subset(layers, "Inhabited", negate = TRUE)
+      compartments <- terra::subset(layers, "Inhabited", negate = TRUE)
       compartments$Dead %<>% "*"(-1)
-      compartments %<>% global(sum, na.rm = TRUE)
+      compartments %<>% terra::global(sum, na.rm = TRUE)
 
       ## Set NSVEI counts in the summaryTable table; the date column is calculated later.
       summaryTable[today, 1] <- round(sum(compartments[-6, ], na.rm = TRUE)) # DONT include the dead.
@@ -1011,13 +1013,13 @@ SVEIRD.BayesianDataAssimilation <-
 
       ## The population is the sum of the susceptible, vaccinated, exposed,
       ## infected, and recovered compartments.
-      numberLiving <- sum(subset(layers, c("Dead", "Inhabited"), negate = TRUE))
+      numberLiving <- sum(terra::subset(layers, c("Dead", "Inhabited"), negate = TRUE))
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
       ## Some susceptible people who come in contact with nearby infected are
       ## going to be newly exposed
       proportionSusceptible <- `βN⁻¹` <-
-        subst(layers$Susceptible / numberLiving, NaN, 0) # βN-1
+        terra::subst(layers$Susceptible / numberLiving, NaN, 0) # βN-1
 
       transmissionLikelihoods <- `Ĩ` <-
         transmissionLikelihoodWeightings(layers$Infected,
@@ -1134,7 +1136,7 @@ SVEIRD.BayesianDataAssimilation <-
         ## values for uninhabitable areas. MAYBE TODO: a raster with
         ## uninhabitable areas which can mask the susceptible and any other
         ## layer with NAs would be better than this.
-        layers$Infected <- terra::mask("crs<-"("ext<-"(rast(I), ext(layers)), crs(layers)),
+        layers$Infected <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
                                        layers$Inhabited,
                                        maskvalues = 0,
                                        updatevalue = 0)
