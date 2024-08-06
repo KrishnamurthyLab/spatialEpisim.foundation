@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 ##' aggregated to 1km resolution using 100m resolution population count
 ##' datasets». See: https://hub.worldpop.org/doi/10.5258/SOTON/WP00671.
 ##' @title Download WorldPop 2020 data
-##' @param countryISO3C The uppercase ISO three character code a recognized
+##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder The destination folder the downloaded data will be stored in
 ##' @returns An absolute path where the data was downloaded, or the path at which
@@ -36,16 +36,16 @@ suppressPackageStartupMessages({
 ##' @export
 ##' @examples
 ##' downloadWorldPopData("COD", here("data", "geotiff"))
-downloadWorldPopData <- function(countryISO3C, folder = here::here("data", "geotiff")) {
+downloadWorldPopData <- function(countryCodeISO3C, folder = here::here("data", "geotiff")) {
   ## Construct the path to the data on data.worldpop.org
   urlPath <-
     c("GIS",
       "Population",
       "Global_2000_2020_1km_UNadj",
       "2020",
-      countryISO3C,
+      countryCodeISO3C,
       basename = sprintf("%s_ppp_2020_1km_Aggregated_UNadj.tif",
-                         tolower(countryISO3C))) %>%
+                         tolower(countryCodeISO3C))) %>%
     httr2:::dots_to_path()
   url <- httr2::url_build(structure(list(scheme = "https",
                                   hostname = "data.worldpop.org",
@@ -67,7 +67,7 @@ downloadWorldPopData <- function(countryISO3C, folder = here::here("data", "geot
 ##' The level one boundaries are the least granular administrative boundaries
 ##' that countries create to subdivide themselves.
 ##' @title Retrieve a SpatRaster of level 1 boundaries from local or remote disk
-##' @param countryISO3C The uppercase ISO three character code a recognized
+##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder The path where GADM data should be found or stored; passed on
 ##'   to geodata::gadma.
@@ -85,9 +85,9 @@ downloadWorldPopData <- function(countryISO3C, folder = here::here("data", "geot
 ##' ## the path
 ##' lvl1AdminBorders("COD", file.path("data", "gadm"))
 ##' }
-lvl1AdminBorders <- function(countryISO3C, folder = geodata_path()) {
+lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata_path()) {
   geodata::gadm(
-    country = countryISO3C,
+    country = countryCodeISO3C,
     level = 1,
     path = folder,
     version = "3.6",
@@ -98,7 +98,7 @@ lvl1AdminBorders <- function(countryISO3C, folder = geodata_path()) {
 ##' Create a named RasterLayer object useful for spatiotemporal epidemic
 ##' compartmental modelling.
 ##' @title Create a Susceptible-component RasterLayer
-##' @param countryISO3C The uppercase ISO three character code a recognized
+##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder Passed on to method downloadWorldPopData
 ##' @returns A RasterLayer of WorldPop population count data with the name
@@ -112,12 +112,12 @@ lvl1AdminBorders <- function(countryISO3C, folder = geodata_path()) {
 ##' options(geodata_default_path = tempdir())
 ##' getCountryPopulation.SpatRaster("COD")
 ##' options(geodata_default_path = geodata_path_backup)
-getCountryPopulation.SpatRaster <- function(countryISO3C, folder = NULL) {
+getCountryPopulation.SpatRaster <- function(countryCodeISO3C, folder = NULL) {
   countryRaster <-
     if(is.null(folder)) {
-      terra::rast(downloadWorldPopData(countryISO3C))
+      terra::rast(downloadWorldPopData(countryCodeISO3C))
     } else {
-      terra::rast(downloadWorldPopData(countryISO3C, folder))
+      terra::rast(downloadWorldPopData(countryCodeISO3C, folder))
     }
 
   replace(countryRaster, is.na(countryRaster), 0) %>%
@@ -127,7 +127,7 @@ getCountryPopulation.SpatRaster <- function(countryISO3C, folder = NULL) {
 ##' Read an RDS file from the GADM folder for a given country's subregion.
 ##'
 ##' @title Get a country's GADM verison 3.6 raster
-##' @param countryISO3C The uppercase ISO three character code a recognized
+##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param level1Region The subregions of the country to crop to
 ##' @param folder The folder which should be searched for the GADM data, passed
@@ -142,15 +142,15 @@ getCountryPopulation.SpatRaster <- function(countryISO3C, folder = NULL) {
 ##' getCountrySubregions.SpatVector("CZE", "Prague")
 ##' getCountrySubregions.SpatVector("NGA", "Kwara")
 ##' options(geodata_default_path = geodata_path_backup)
-getCountrySubregions.SpatVector <- function(countryISO3C = "COD",
+getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
                                             level1Region = c("Nord-Kivu", "Ituri"),
                                             folder) {
-  stopifnot(countryISO3C %in% countrycode::codelist$iso3c)
+  stopifnot(countryCodeISO3C %in% countrycode::codelist$iso3c)
   ## Read data from the gadm folder corresponding to the country. ## NOTE: 1_sp
   ## refers to the fact that this RDS file contains 1km aggregated spatial data.
-  ## here(folder, sprintf("gadm36_%s_1_sp.rds", toupper(countryISO3C))) %>%
+  ## here(folder, sprintf("gadm36_%s_1_sp.rds", toupper(countryCodeISO3C))) %>%
   ##   readRDS() %>%
-  lvl1AdminBorders(countryISO3C, folder) %>%
+  lvl1AdminBorders(countryCodeISO3C, folder) %>%
     subset(.$NAME_1 %in% level1Region)
 }
 
@@ -217,13 +217,6 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
   ## Rather than interjecting and elongating the pipe's line count, they are
   ## moved here (before the pipe), so only a relevant comment interjects in the
   ## pipeline.
-  ##
-  ## MAYBE FIXME: these values are unused.
-  ## dlong = abs(xmax(susceptibleMaskedBySubregion) -
-  ##             xmin(susceptibleMaskedBySubregion))
-  ## ## MAYBE FIXME: shouldn't this be ymax - ymin?
-  ## dlat = abs(ymax(susceptibleMaskedBySubregion) -
-  ##            xmax(susceptibleMaskedBySubregion))
 
   ## Mask the susceptible SpatRaster by the subregions SpatRaster
   terra::crop(susceptible, subregions, mask = TRUE) %>%
@@ -284,10 +277,7 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
     susceptible <- terra::aggregate(susceptible, aggregationFactor)
   }
 
-  ## MAYBE FIXME: I'd be surprised if any of the values were negative, but it's
-  ## okay to retain this.
   terra::values(susceptible)[terra::values(susceptible) < 0] <- 0
-
   Inhabited <- susceptible
   terra::values(Inhabited)[terra::values(Inhabited) > 0] <- 1
   terra::values(Inhabited)[terra::values(Inhabited) < 1] <- 0
@@ -359,7 +349,7 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
   dplyr::mutate(df, avgEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)) %>%
     dplyr::select(avgEuclideanDistance) %>%
     unlist(use.names = FALSE) %>%
-    base::matrix(byrow = TRUE, ncols = sqrt(length(.)))
+    base::matrix(byrow = TRUE, ncol = sqrt(length(.)))
 }
 
 ##' @title Weighted Sums
@@ -374,14 +364,15 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
 ##' @param lambda movemenet distance (in kilometers) per day; see details.
 ##' @param aggregationFactor the degree of aggregation applied to the raster
 ##'   data mentioned in the function details.
-##' @returns a matrix of weightings for the calculation of the proportion of
+##' @returns a matrix of weightings for the calculation of the proportionOfSusceptible of
 ##'   exposed individuals who will become infectious.
 ##' @author Bryce Carson
 ##' @author Thomas White
 ##' @export
 ##' @keywords internal
 ##' @examples
-##' ## TODO FIXME
+##' ## TODO FIXME: Infected is not an available object and can't be used in this
+##' ## example code.
 ##' terra::as.matrix(Infected, wide = TRUE) %>%
 ##'   transmissionLikelihoodWeightings(30, 15, 35)
 transmissionLikelihoodWeightings <-
@@ -712,7 +703,7 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'   layer classifying habitation. Created with the getSVEIRD.SpatRaster
 ##'   function.
 ##' @param startDate The date (in YYYY-MM-DD format) the simulation begins.
-##' @param countryISO3C The ISO three character code for a recognized country.
+##' @param countryCodeISO3C The ISO three character code for a recognized country.
 ##' @param rasterAgg The number of adjacent cells in any one direction to
 ##'   aggregate into a single cell. The aggregation factor must be the same as
 ##'   that used to generate the SpatRaster for layers.
@@ -736,7 +727,7 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'     1.35551 29.08173 0 0 0 0 0 }
 ##' @param seedRadius The number of cells over which to average the seed data in
 ##'   a Moore neighbourhood for each locality.
-##' @param simulationIsDeterministic Whether stochasticity is enabled or not; if
+##' @param imulationIsDeterministic Whether stochasticity is enabled or not; if
 ##'   the simulation is deterministic then no stochastic processes are used and
 ##'   the simulation is entirely deterministic.
 ##' @param dataAssimilationEnabled Whether Bayesian data assimilation will be
@@ -839,9 +830,10 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'                                 aggregationFactor = 35),
 ##'   rasterAgg = 35,
 ##'   startDate = "2018-08-05",
-##'   countryISO3C = "COD",
+##'   countryCodeISO3C = "COD",
 ##'   incidenceData = Congo.EbolaIncidence,
 ##'   ## Model options
+##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = TRUE,
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   variableCovarianceFunction = "DBD",
@@ -852,25 +844,24 @@ replaceInequalityWith <- function(f, w, x, y = NULL, z) {
 ##'   psi.diagonal = 1e-3
 ##' )
 SVEIRD.BayesianDataAssimilation <-
-  function(## Parameters
+  function(## Parameters influencing differential equations # TODO: verify the description of these parameters, i.e., do none of the other parameters influence the differential equations?
            alpha,
            beta,
            gamma,
            sigma,
            delta,
-           radius,
-           lambda,
 
            ## Model runtime
            n.days,
 
            ## Model data
-           seedData,
-           seedRadius = 0,
+           seedData,        ## these three arguments influence the progression of infection
+           seedRadius = 0,  ## these three arguments influence the progression of infection
+           lambda,          ## these three arguments influence the progression of infection
            layers,
            rasterAgg,
            startDate,
-           countryISO3C,
+           countryCodeISO3C,
            incidenceData = NULL,
            deathData = NULL,
 
@@ -888,7 +879,9 @@ SVEIRD.BayesianDataAssimilation <-
 
            ## Monitoring and logging
            callback = `{`) {
+    ## MAYBE: is missing a better option? NULL defaults influence the decision...
     compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
+
     ## Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summary".
     names <- c(## Population and epidemic compartments (states)
@@ -899,17 +892,9 @@ SVEIRD.BayesianDataAssimilation <-
                ## Cumulative values of exposed or infected people through the
                ## simulation runtime
                "cumE", "cumI")
-
     summary <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
-
-    tibble::tibble(N = numeric(n.days))
-
-    ## NOTE: HOW ARE THESE USED?
-    nrows <- terra::nrow(layers)
-    ncols <- terra::ncol(layers)
-    p <- nrows * ncols # What is the meaning of p?
 
     ## NOTE: cast the seed data from the initial infections equitably, in a
     ## Moore Neighborhood of cells.
@@ -922,8 +907,9 @@ SVEIRD.BayesianDataAssimilation <-
                        function(x) x / (2 * seedRadius + 1)^2)) %>%
       dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
-    for (location in seedData.equitable$Location) {
-      data <- base::subset(seedData.equitable, Location == location)
+    for (seedingLocation in seedData.equitable$Location) {
+      ## data <- base::subset(seedData.equitable, Location == seedingLocation)
+      data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
 
       ## Get row and column numbers from the latitude and longitude for this
       ## health region.
@@ -942,46 +928,42 @@ SVEIRD.BayesianDataAssimilation <-
       }
     }
 
-    ## Calculate the proportion of people who will move from the susceptibile
+    ## MAYBE FIXME: why are there two conceptions of proportionOfSusceptible? All
+    ## compartments are calculated here as the proportionOfSusceptible they are of the
+    ## susceptible compartment, but not as the proportionOfSusceptible of those who will
+    ## leave the compartment (which is parameterized and calculated differently
+    ## for each state transition).
+    ##
+    ## Calculate the proportionOfSusceptible of people who will move from the susceptibile
     ## compartment to another compartment. NOTE: the names, exactly as they
     ## are, provide semantics for the components: e.g. accessing the
-    ## proportion$vaccinated, or the proportion$exposed, is self-describing.
-    proportion <-
+    ## proportionOfSusceptible$vaccinated, or the proportionOfSusceptible$exposed, is self-describing.
+    proportionOfSusceptible <-
       purrr::map_dbl(c(vaccinated = layers$Vaccinated,
                        exposed = layers$Exposed,
                        infected = layers$Infected,
                        recovered = layers$Recovered,
                        dead = layers$Dead),
                      function(otherCompartment, susceptibleCompartment) {
-                       sum(terra::values(otherCompartment)) / susceptibleCompartment
+                       sum(as.vector(otherCompartment), na.rm = TRUE) / susceptibleCompartment
                      },
                      ## NOTE: Supplying the sum of the values of the susceptible compartment
                      ## as an extra argument passed to the anonymous function ensures
                      ## that its value is only calculated once.
-                     susceptibleCompartment = sum(terra::values(layers$Susceptible)))
+                     susceptibleCompartment = sum(as.vector(layers$Susceptible), na.rm = TRUE))
+    stopifnot(all(!is.nan(proportionOfSusceptible)))
 
-    ## Calculate the actual number of people that have moved to other compartments
-    ## and subtract these from the original Susceptible compartment count.
-    terra::values(layers$Susceptible) %<>%
-      sum(terra::as.matrix(layers$Susceptible) * -proportion)
+    ## NOTE: calculate the actual number of people that HAVE moved to other
+    ## compartments and subtract these from the original Susceptible compartment
+    ## count. MAYBE FIXME: this needs validation, given the calculation of the
+    ## state transitions later on... are the numbers modified twice?
+    terra::values(layers$Susceptible) <-
+      sum(as.vector(layers$Susceptible), na.rm = TRUE) %>%
+      sum(. * -proportionOfSusceptible, na.rm = TRUE)
 
     if (dataAssimilationEnabled) {
-      ## MAYBE TODO: resurrect some, a lot, or all of the other print statements
-      ## that once existed and convert them to messages, which are easily
-      ## suppressed with the suppressMessages function. E.g.:
-      ## message(sprintf("Dimension of Incidence Matrix: %s ✕ %s",
-      ##                 dim(incidenceData)[1],
-      ##                 dim(incidenceData)[2]))
-
-      ## FIXME: a strange error occurs during the call to `apply` in this
-      ## function when it is being called from inside SVEIRD only; the error
-      ## message is reported on GitHub here:
-      ## https://github.com/ashokkrish/spatialEpisim/issues/36#issuecomment-2261987543.
       ## Generate the linear interpolation operator matrix (function works for
-      ## two compartments, at most). DONE: I now understand the error: [envir]
-      ## is not of length one because data has a length greater than one, and
-      ## data is the object [data] which is constructed in the parent
-      ## environment.
+      ## two compartments, at most).
       linearInterpolationMatrix <-
         linearInterpolationOperator(layers,
                                     healthZoneCoordinates,
@@ -1015,7 +997,7 @@ SVEIRD.BayesianDataAssimilation <-
     ## objects.
     layers.timeseries <- vector(mode = "list", length = n.days)
 
-    ## FIXME: absolutely do not use this "datarow". There's a much better way.
+    ## TODO: absolutely do not use this "datarow". There's a much better way.
     ## NOTE: datarow is a sentinel value used to prevent trying to assimilate
     ## more data than exists in the observed data dataframe. Seventy-six is a
     ## magic number, which is actually the number of rows of observed data plus
@@ -1025,6 +1007,10 @@ SVEIRD.BayesianDataAssimilation <-
     ## is then assimilated.
     datarow <- 1 # pre-allocating the row from which we read the data to
                                         # assimilate each week
+
+    ## TODO: all of the calcualtions within this loop should be spatial
+    ## calcualtions on the SpatRasters, and no conversion to vector or matrix
+    ## should be performed unless absolutely necessary.
     for (today in seq(n.days)) {
       ## TODO: At this URL, StackOverflow user Roman provides a reprex for a
       ## waitress callback function to generate a progress bar.
@@ -1038,21 +1024,13 @@ SVEIRD.BayesianDataAssimilation <-
       ## summary data at the end of the function.
       ## summary[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
 
-      ## BEGIN FIXME -----------------------------------------------------------
-      ## The following code which calculates the counts for compartments and
-      ## assigns them to the summary data frame is wildly incorrect at the
-      ## moment.
-      ## -----------------------------------------------------------------------
       ## Set NSVEI counts in the summary table.
-      ## FIXME:
-      ## [1] "Proportion:\nNaN" "Proportion:\nNaN" "Proportion:\nNaN"
-      ## [4] "Proportion:\nNaN" "Proportion:\nNaN"
-      print(sprintf("Proportion:\n%s", proportion))
-
-      counts <- as.vector(terra::as.matrix(layers$Susceptible) * proportion)
-      population <- sum(terra::values(layers$Susceptible), counts); stopifnot(length(population == 1))
+      susceptibleSum <- sum(layers$Susceptible, na.rm = TRUE)
+      counts <- susceptibleSum * proportionOfSusceptible
+      ## MAYBE FIXME: less the counts?
+      population <- sum(susceptibleSum, counts); stopifnot(length(population) == 1)
       summary[today, 2] <- round(population)
-      summary[today, 3] <- round(sum(terra::values(layers$susceptible)))
+      summary[today, 3] <- round(susceptibleSum)
       summary[today, 4] <- round(counts[1])
       ## This is the prevalence (active exposed cases) at time today, NOT the
       ## cumulative sum.
@@ -1061,64 +1039,75 @@ SVEIRD.BayesianDataAssimilation <-
       ## cumulative sum.
       summary[today, 6] <- round(counts[3])
 
-      layerWideMatrices <- lapply(c(Inhabited = inhabited,
-                                    Susceptible = susceptible,
-                                    Vaccinated = vaccinated,
-                                    Exposed = exposed,
-                                    Infected = infected,
-                                    Recovered = recovered,
-                                    Dead = dead),
-                                  terra::as.matrix,
-                                  wide = TRUE)
-      ## -----------------------------------------------------------------------
-      ## END FIXME: this was the former usage of with(proportion, { ... }) -----
-      ## -----------------------------------------------------------------------
-
-      numberLiving <- sum(layerWideMatrices)
-      transmissionLikelihoods <-
-        transmissionLikelihoodWeightings(layerWideMatrices$Infected,
-                                         radius,
-                                         lambda,
-                                         rasterAgg)
+      ## FIXME: this is actually just the sum of all numbers, throughout all
+      ## cells, in all layers; it included the dead accidentally.
+      layerWideMatrices <- lapply(layers, terra::as.matrix, wide = TRUE)
+      names(layerWideMatrices) <- names(layers)
+      numberLiving <- reduce(lapply(layerWideMatrices, as.vector), sum, na.rm = TRUE)
+      ## The population is the sum of the susceptible, exposed, infected, and
+      ## recovered compartments. TODO: alternative, using only terra methods,
+      ## and retaining SpatRaster class.
+      ## numberLiving <- sum(subset(layers, c("Dead", "Inhabited"), negate = TRUE))
 
       ## Some susceptible people are going to be newly vaccinated
-      with(layerWideMatrices, {
-        newVaccinated <- (alpha * Susceptible) %>%
-          replaceInequalityWith(f = `<`, Susceptible, 1, 0)
-      })
+      ## FIXME: the returned value is not a matrix, it is only a single value.
+      newVaccinated <- (alpha * layerWideMatrices$Susceptible) %>%
+        replaceInequalityWith(f = `<`, layerWideMatrices$Susceptible, 1, 0)
+      ## TODO: alternative retaining SpatRaster class and using only terra methods.
+      ## newVaccinated <- alpha * classify(layers$Susceptible,
+      ##                                   cbind(-Inf, 1, 0),
+      ##                                   right = FALSE)
 
       ## Some susceptible people who come in contact with nearby infected are
       ## going to be newly exposed
-      proportionSusceptible <- layerWideMatrices$Susceptible / numberLiving
+      proportionSusceptible <- `βN⁻¹` <- layerWideMatrices$Susceptible / numberLiving # βN-1
       proportionSusceptible[is.nan(proportionSusceptible)] <- 0
+      ## proportionSusceptible <- `βN⁻¹` <-
+      ##   subst(layers$Susceptible / numberLiving, NaN, 0) # βN-1 # TODO: alternative code, for Susceptible as a SpatRaster.
 
-      growth <- beta * proportionSusceptible * transmissionLikelihoods
-      newExposed <- growth %>%
-        if(simulationIsDetermistic) growth else stats::rpois(1, growth)
+      transmissionLikelihoods <- `Ĩ` <-
+        transmissionLikelihoodWeightings(layers$Infected,
+                                         seedRadius,
+                                         lambda,
+                                         rasterAgg)
 
-      newExposed[c(susceptibleMatrix < 1) || transmissionLikelihoods < 1] <- 0
+      growth <- matrix(as.vector(beta * proportionSusceptible)
+                       * as.vector(`Ĩ`),
+                       nrow = 20,
+                       ncol = 14,
+                       byrow = TRUE)
 
+      ## TODO: stochasticity is not properly implemented yet; it was not fully
+      ## supported in the previous implementation. It's likely that using
+      ## stochasticity now will produce an error.
+      newExposed <- if(simulationIsDeterministic) growth else stats::rpois(1, growth)
+      ## NOTE: any indices of these objects which were less than one will be the
+      ## same indices that are set to zero in the newExposed object.
+      indices <- c(proportionSusceptible < 1, transmissionLikelihoods < 1)
+      newExposed[unlist(indices[-length(indices)])] <- 0
       dailyExposed <- sum(newExposed)
 
-      ## Some exposed people are going to become newly infectious
-      valExposed <- Exposed + newExposed # MAYBE FIXME: what was valExposed before the refactor?
-      newInfected <- gamma * valExposed
-      newInfected[valExposed < 1] <- 0
-
+      newInfected <- gamma * (layerWideMatrices$Exposed + newExposed)
+      newInfected[newInfected < 1] <- 0
+      ## ## TODO: alternative retaining SpatRaster class and using only terra methods.
+      ## newInfected <- classify(gamma * (layers$Exposed + newExposed),
+      ##                         cbind(-Inf, 1, 0),
+      ##                         right = FALSE)
       dailyInfected <- sum(newInfected)
 
-      ## FIXME: this is awful practice; the cumulative infected should, ideally,
+      ## TODO: this is bad practice; the cumulative infected should, ideally,
       ## be summarized from daily infected data later on, but cumulative
       ## infected is used later on in the simulation algorithm before it ends
       ## and before the mentioend summary values could be calculated in the
       ## mentioned alternative practice.
-      if (!exists("cumInfected")) cumInfected <- 0
-      cumInfected <- sum(cumInfected, newInfected)
+      if (!exists("cumulativeInfected")) cumulativeInfected <- 0
+      cumulativeInfected <- sum(cumulativeInfected, newInfected)
 
-      summary[today, 8] <- round(sum(Dead)) # Absorbing state
-      summary[today, 15] <- round(cumInfected)
+      summary[today, 8] <- round(sum(layerWideMatrices$Dead))
+      summary[today, 15] <- round(cumulativeInfected)
 
       ## Some infectious people are going to either recover or die
+      valInfected <- layerWideMatrices$Infected + newInfected
       newRecovered <- sigma*valInfected
       newRecovered[valInfected < 1] <- 0
 
@@ -1129,62 +1118,67 @@ SVEIRD.BayesianDataAssimilation <-
 
       dailyDead <- sum(newDead)
 
+      ## MAYBE FIXME: these values are not spatial... they are single values, I think?
       ## Store the next state of each cell into the layers SpatRaster. TODO:
       ## there's a better way than this to collect the SpatRasters for each day
       ## in the time series; find that way and implement it.
-      with({
-        tibble::tibble(Susceptible = layerWideMatrices$Susceptible -
-                 newExposed -
-                 newVaccinated,
+      newValues <-
+        tibble::tibble(Susceptible = layerWideMatrices$Susceptible - newExposed - newVaccinated,
+                       Vaccinated  = layerWideMatrices$Vaccinated  - newVaccinated,
+                       Exposed     = layerWideMatrices$Exposed     + newExposed  - newInfected,
+                       Infected    = layerWideMatrices$Infected    + newInfected - newDead - newRecovered,
+                       Recovered   = layerWideMatrices$Recovered   + newRecovered,
+                       Dead        = layerWideMatrices$Dead        + newDead)
 
-               Vaccinated = layerWideMatrices$Vaccinated - newVaccinated,
+      newLayerColumns <- ncol(newValues$Susceptible)
+      newLayerRows <- nrow(newValues$Susceptible)
+      ## TODO: here I can use terra::mask to cover over the values with zeroes
+      ## in places wherein everyone is actually dead.
+      newLayers <-
+      dplyr::mutate(newValues,
+                    dplyr::across(Susceptible:Dead,
+                                  ## NOTE: this is a purrr-style lambda. NOTE:
+                                  ## wherever the number of living is negative,
+                                  ## replace that value with zero, and these
+                                  ## indices are the ones where the population
+                                  ## in the layer should be snuffed out.
+                                  ~ replaceInequalityWith(`<`,
+                                                          .x,
+                                                          numberLiving,
+                                                          0,
+                                                          0)))
 
-               Exposed = layerWideMatrices$Exposed + newExposed - newInfected,
+      newLayers %<>%
+        as.list() %>%
+        ## FIXME: Error in methods::as(x, "SpatRaster"): no method or default
+        ## for coercing “numeric” to “SpatRaster”
+        lapply(\(x) as.matrix(x, nrow = newLayerRows, ncol = newLayerColumns, byrow = TRUE)) %>%
+        lapply(rast) %>%
+        lapply(function(component) {
+          terra::"ext<-"(component, layers)
+          terra::"crs<-"(component, layers)
+        })
 
-               Infected = layerWideMatrices$Infected +
-                 newInfected -
-                 newDead -
-                 newRecovered,
-
-               Recovered = layerWideMatrices$Recovered + newRecovered,
-
-               Dead = layerWideMatrices$Dead + newDead) %>%
-          dplyr::mutate(dplyr::across(Susceptible:Dead,
-                        ## NOTE: this is a purrr-style lambda.
-                        ~ replaceInequalityWith(`<`,
-                                                .x,
-                                                numberLiving,
-                                                0,
-                                                0))) %>%
-          as.list() %>%
-          lapply(rast) %>%
-          lapply(function(component) {
-            terra::"ext<-"(component, layers)
-            terra::"crs<-"(component, layers)
-          })
-      }, {
-        layers$Susceptible <- Susceptible
-        layers$Vaccinated <- Vaccinated
-        layers$Exposed <- Exposed
-        layers$Infected <- Infected
-        layers$Recovered <- Recovered
-        layers$Dead <- Dead
-      })
+      ## NOTE ------------------------------------------------------------------
+      ## AFTER THIS POINT USE ONLY newLayers, DONT USE THE OLD layers OBJECT!
+      ## NOTE-------------------------------------------------------------------
 
       ## NOTE: assimilate observed data weekly, not more or less frequently,
       ## while there is still data to assimilate.
-      if (all(dataAssimlationEnabled,
-              today %% 7 == 0,
-              datarow < nrow(incidenceData))) {
+      shouldAssimilateData <- all(dataAssimlationEnabled,
+                                  today %% 7 == 0,
+                                  ## TODO: if removing datarow, a list can be used and emptied...
+                                  datarow < nrow(incidenceData))
+      if (shouldAssimilateData) {
         datarow <- datarow + 1
 
         ## NOTE: Optimal statistical inference: forecast state. NOTE: We track
         ## the compartments representing the states of being infectious or dead.
-        Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
+        Infected.prior <- terra::as.matrix(newLayers$Infected, wide = TRUE)
 
-        Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-        rat <- sum(terra::as.matrix(Exposed, wide = TRUE)) /
-          (sum(Infected) + 1e-9) # FIXME: magic number
+        Infected <- terra::as.matrix(newLayers$Infected, wide = TRUE)
+        ## TODO: this needs a more descriptive name; what is RAT? I forget already.
+        rat <- sum(terra::as.matrix(Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
         ## NOTE: see "Conjecture (Ⅰ)" in "Notes about covariance matrices" in
         ## the Google Drive folder for information on the motivation for
@@ -1199,9 +1193,8 @@ SVEIRD.BayesianDataAssimilation <-
 
         ## Pick a row every 7 n.days, select third column through to the last
         ## column; measurement error covariance matrix.
-        D.v <- as.vector(incidenceData[datarow,
-                                       1:nrow(healthZoneCoordinates) + 2]) %>%
-          replaceInequalityWith(f = `<`, ., ., 1, psi.diagonal)
+        D.v <- as.vector(incidenceData[datarow, 1:nrow(healthZoneCoordinates) + 2])
+        D.v[D.v < 1] <- psi.diagonal
 
         ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
         ## are assimilated.
@@ -1209,15 +1202,19 @@ SVEIRD.BayesianDataAssimilation <-
 
         ## NOTE: Optimal statistical inference update step: analyze state? THEM:
         ## "OSI update step: analysis state".
-        Xa.OSI <- Xf.OSI + Ke.OSI %*% (Matrix::t(Matrix::t(D.v)) - HXf) %>%
-          replaceInequalityWith(f = `<`, 0, 0)
+        Xa.OSI <- Xf.OSI + Ke.OSI %*% (Matrix::t(Matrix::t(D.v)) - HXf)
+        Xa.OSI[Xa.OSI < 0] <- 0
 
         ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
-        ## seq(p), requiring us to subset it so that I is not too large? NOTE:
-        ## when restacking make sure byrow = TRUE.
-        I <- matrix(Xa.OSI[seq(p)],
-                    nrow = nrows,
-                    ncol = ncols,
+        ## "seq(terra::nrow(newLayers) * terra::ncol(newLayers))", requiring us to
+        ## subset it so that I is not too large? NOTE: when RESTACKING make sure
+        ## byrow = TRUE. NOTE: what is restacking? Why did I choose this word
+        ## when I wrote the first part of this comment a week ago? NOTE: take
+        ## the subset of Xa.OSI which is the same size as `newLayers`? Using single
+        ## element subsetting assumes row-major ordering.
+        I <- matrix(Xa.OSI[seq(terra::nrow(newLayers) * terra::ncol(newLayers))],
+                    nrow = terra::nrow(newLayers),
+                    ncol = terra::ncol(newLayers),
                     byrow = TRUE)
 
         ## NOTE: if an area is uninhabitable replace its value with zero; it
@@ -1225,15 +1222,18 @@ SVEIRD.BayesianDataAssimilation <-
         ## values for uninhabitable areas. MAYBE TODO: a raster with
         ## uninhabitable areas which can mask the susceptible and any other
         ## layer with NAs would be better than this.
-        I %<>% replaceInequalityWith(f = `==`, valInhabitable, 0, 0)
-        cumInfected <- cumInfected +
-          sum(I - Infected.prior)
-        layers$Exposed <- rat * "values<-"(layers$Infected, I)
+        I[valInhabitable == 0] <- 0
+        cumulativeInfected %<>% sum(I - Infected.prior); stopifnot(length(cumulativeInfected) == 1)
+        newLayers$Exposed <- rat * "values<-"(newLayers$Infected, I)
       }
 
-      layers.timeseries[[today]] <- layers
+      layers.timeseries[[today]] <- newLayers
     }
 
+    ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
+    ## always replace it in our summary table; for some variables it makes sense
+    ## that the value is zero (no fatalities, infections, exposures, et cetera),
+    ## but why would it be NA (missing) or NaN (not a number)?
     summary[is.na(summary)] <- 0
     return(summary)
   }
