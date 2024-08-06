@@ -958,7 +958,7 @@ SVEIRD.BayesianDataAssimilation <-
     ## count. MAYBE FIXME: this needs validation, given the calculation of the
     ## state transitions later on... are the numbers modified twice?
     terra::values(layers$Susceptible) <-
-      sum(as.vector(layers$Susceptible), na.rm = TRUE) %>%
+      sum(layers$Susceptible, na.rm = TRUE) %>%
       sum(. * -proportionOfSusceptible, na.rm = TRUE)
 
     if (dataAssimilationEnabled) {
@@ -1004,9 +1004,12 @@ SVEIRD.BayesianDataAssimilation <-
     ## one (for one-based indexing). The rows are weekly data; it may be easier
     ## to simply check if there is more data to assimilate, and whenever the
     ## simulation date is one day before or the same day as the observed data it
-    ## is then assimilated.
-    datarow <- 1 # pre-allocating the row from which we read the data to
-                                        # assimilate each week
+    ## is then assimilated. pre-allocating the row from which we read the data
+    ## to assimilate each week
+    datarow <- 1
+
+    reclassifyNegatives <-
+      function(spit) terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
 
     ## TODO: all of the calcualtions within this loop should be spatial
     ## calcualtions on the SpatRasters, and no conversion to vector or matrix
@@ -1020,50 +1023,32 @@ SVEIRD.BayesianDataAssimilation <-
       ## using. The arguments should be provided as a list.
       callback() # Run the callback function, or NULL expression.
 
+      susceptibleSum <- sum(layers$Susceptible, na.rm = TRUE)
+      counts <- susceptibleSum * proportionOfSusceptible
+      population <- sum(susceptibleSum, counts, -layers$Dead); stopifnot(length(population) == 1)
+
+      ## Set NSVEI counts in the summary table.
       ## TODO: the entire column can be calculated one time and added to the
       ## summary data at the end of the function.
       ## summary[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
-
-      ## Set NSVEI counts in the summary table.
-      susceptibleSum <- sum(layers$Susceptible, na.rm = TRUE)
-      counts <- susceptibleSum * proportionOfSusceptible
-      ## MAYBE FIXME: less the counts?
-      population <- sum(susceptibleSum, counts); stopifnot(length(population) == 1)
       summary[today, 2] <- round(population)
       summary[today, 3] <- round(susceptibleSum)
       summary[today, 4] <- round(counts[1])
-      ## This is the prevalence (active exposed cases) at time today, NOT the
-      ## cumulative sum.
+      ## Columns five and six of the summary contain the exposed and infectious
+      ## portions of prevalence (active exposed or infected cases, respectively)
+      ## at time "today".
       summary[today, 5] <- round(counts[2])
-      ## This is the prevalence (active infectious cases) at time today, NOT the
-      ## cumulative sum.
       summary[today, 6] <- round(counts[3])
 
-      ## FIXME: this is actually just the sum of all numbers, throughout all
-      ## cells, in all layers; it included the dead accidentally.
-      layerWideMatrices <- lapply(layers, terra::as.matrix, wide = TRUE)
-      names(layerWideMatrices) <- names(layers)
-      numberLiving <- reduce(lapply(layerWideMatrices, as.vector), sum, na.rm = TRUE)
       ## The population is the sum of the susceptible, exposed, infected, and
-      ## recovered compartments. TODO: alternative, using only terra methods,
-      ## and retaining SpatRaster class.
-      ## numberLiving <- sum(subset(layers, c("Dead", "Inhabited"), negate = TRUE))
-
-      ## Some susceptible people are going to be newly vaccinated
-      ## FIXME: the returned value is not a matrix, it is only a single value.
-      newVaccinated <- (alpha * layerWideMatrices$Susceptible) %>%
-        replaceInequalityWith(f = `<`, layerWideMatrices$Susceptible, 1, 0)
-      ## TODO: alternative retaining SpatRaster class and using only terra methods.
-      ## newVaccinated <- alpha * classify(layers$Susceptible,
-      ##                                   cbind(-Inf, 1, 0),
-      ##                                   right = FALSE)
+      ## recovered compartments.
+      numberLiving <- sum(subset(layers, c("Dead", "Inhabited"), negate = TRUE))
+      newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
       ## Some susceptible people who come in contact with nearby infected are
       ## going to be newly exposed
-      proportionSusceptible <- `βN⁻¹` <- layerWideMatrices$Susceptible / numberLiving # βN-1
-      proportionSusceptible[is.nan(proportionSusceptible)] <- 0
-      ## proportionSusceptible <- `βN⁻¹` <-
-      ##   subst(layers$Susceptible / numberLiving, NaN, 0) # βN-1 # TODO: alternative code, for Susceptible as a SpatRaster.
+      proportionSusceptible <- `βN⁻¹` <-
+        subst(layers$Susceptible / numberLiving, NaN, 0) # βN-1
 
       transmissionLikelihoods <- `Ĩ` <-
         transmissionLikelihoodWeightings(layers$Infected,
@@ -1087,96 +1072,49 @@ SVEIRD.BayesianDataAssimilation <-
       newExposed[unlist(indices[-length(indices)])] <- 0
       dailyExposed <- sum(newExposed)
 
-      newInfected <- gamma * (layerWideMatrices$Exposed + newExposed)
-      newInfected[newInfected < 1] <- 0
-      ## ## TODO: alternative retaining SpatRaster class and using only terra methods.
-      ## newInfected <- classify(gamma * (layers$Exposed + newExposed),
-      ##                         cbind(-Inf, 1, 0),
-      ##                         right = FALSE)
+      newInfected <- reclassifyNegatives(gamma * (layers$Exposed + newExposed))
       dailyInfected <- sum(newInfected)
 
-      ## TODO: this is bad practice; the cumulative infected should, ideally,
-      ## be summarized from daily infected data later on, but cumulative
-      ## infected is used later on in the simulation algorithm before it ends
-      ## and before the mentioend summary values could be calculated in the
-      ## mentioned alternative practice.
+      ## TODO: this is bad practice; the cumulative infected should, ideally, be
+      ## summarized from daily infected data later on, but cumulative infected
+      ## is used later on in the simulation algorithm before it ends and before
+      ## the mentioend summary values could be calculated in the mentioned
+      ## alternative practice. I'm not sure how to resolve this, or whether it
+      ## SHOULD be.
       if (!exists("cumulativeInfected")) cumulativeInfected <- 0
       cumulativeInfected <- sum(cumulativeInfected, newInfected)
 
-      summary[today, 8] <- round(sum(layerWideMatrices$Dead))
+      summary[today, 8] <- round(sum(layers$Dead))
       summary[today, 15] <- round(cumulativeInfected)
 
       ## Some infectious people are going to either recover or die
-      valInfected <- layerWideMatrices$Infected + newInfected
-      newRecovered <- sigma*valInfected
-      newRecovered[valInfected < 1] <- 0
-
+      infectious <- reclassifyNegatives(layers$Infected + newInfected)
+      newRecovered <- sigma * infectious
       dailyRecovered <- sum(newRecovered)
 
-      newDead <- delta*valInfected
-      newDead[valInfected < 1] <- 0
-
+      newDead <- reclassifyNegatives(delta * infectious)
       dailyDead <- sum(newDead)
 
-      ## MAYBE FIXME: these values are not spatial... they are single values, I think?
-      ## Store the next state of each cell into the layers SpatRaster. TODO:
-      ## there's a better way than this to collect the SpatRasters for each day
-      ## in the time series; find that way and implement it.
-      newValues <-
-        tibble::tibble(Susceptible = layerWideMatrices$Susceptible - newExposed - newVaccinated,
-                       Vaccinated  = layerWideMatrices$Vaccinated  - newVaccinated,
-                       Exposed     = layerWideMatrices$Exposed     + newExposed  - newInfected,
-                       Infected    = layerWideMatrices$Infected    + newInfected - newDead - newRecovered,
-                       Recovered   = layerWideMatrices$Recovered   + newRecovered,
-                       Dead        = layerWideMatrices$Dead        + newDead)
-
-      newLayerColumns <- ncol(newValues$Susceptible)
-      newLayerRows <- nrow(newValues$Susceptible)
-      ## TODO: here I can use terra::mask to cover over the values with zeroes
-      ## in places wherein everyone is actually dead.
-      newLayers <-
-      dplyr::mutate(newValues,
-                    dplyr::across(Susceptible:Dead,
-                                  ## NOTE: this is a purrr-style lambda. NOTE:
-                                  ## wherever the number of living is negative,
-                                  ## replace that value with zero, and these
-                                  ## indices are the ones where the population
-                                  ## in the layer should be snuffed out.
-                                  ~ replaceInequalityWith(`<`,
-                                                          .x,
-                                                          numberLiving,
-                                                          0,
-                                                          0)))
-
-      newLayers %<>%
-        as.list() %>%
-        ## FIXME: Error in methods::as(x, "SpatRaster"): no method or default
-        ## for coercing “numeric” to “SpatRaster”
-        lapply(\(x) as.matrix(x, nrow = newLayerRows, ncol = newLayerColumns, byrow = TRUE)) %>%
-        lapply(rast) %>%
-        lapply(function(component) {
-          terra::"ext<-"(component, layers)
-          terra::"crs<-"(component, layers)
-        })
-
-      ## NOTE ------------------------------------------------------------------
-      ## AFTER THIS POINT USE ONLY newLayers, DONT USE THE OLD layers OBJECT!
-      ## NOTE-------------------------------------------------------------------
+      values(layers$Susceptible) <- layers$Susceptible - newExposed - newVaccinated
+      values(layers$Vaccinated)  <- layers$Vaccinated  - newVaccinated
+      values(layers$Exposed)     <- layers$Exposed     + newExposed  - newInfected
+      values(layers$Infected)    <- layers$Infected    + newInfected - newDead - newRecovered
+      values(layers$Recovered)   <- layers$Recovered   + newRecovered
+      values(layers$Dead)        <- layers$Dead        + newDead
 
       ## NOTE: assimilate observed data weekly, not more or less frequently,
       ## while there is still data to assimilate.
       shouldAssimilateData <- all(dataAssimlationEnabled,
                                   today %% 7 == 0,
-                                  ## TODO: if removing datarow, a list can be used and emptied...
                                   datarow < nrow(incidenceData))
       if (shouldAssimilateData) {
         datarow <- datarow + 1
 
         ## NOTE: Optimal statistical inference: forecast state. NOTE: We track
         ## the compartments representing the states of being infectious or dead.
-        Infected.prior <- terra::as.matrix(newLayers$Infected, wide = TRUE)
+        Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
 
-        Infected <- terra::as.matrix(newLayers$Infected, wide = TRUE)
+        Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
         ## TODO: this needs a more descriptive name; what is RAT? I forget already.
         rat <- sum(terra::as.matrix(Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
@@ -1206,15 +1144,15 @@ SVEIRD.BayesianDataAssimilation <-
         Xa.OSI[Xa.OSI < 0] <- 0
 
         ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
-        ## "seq(terra::nrow(newLayers) * terra::ncol(newLayers))", requiring us to
+        ## "seq(terra::nrow(layers) * terra::ncol(layers))", requiring us to
         ## subset it so that I is not too large? NOTE: when RESTACKING make sure
         ## byrow = TRUE. NOTE: what is restacking? Why did I choose this word
         ## when I wrote the first part of this comment a week ago? NOTE: take
-        ## the subset of Xa.OSI which is the same size as `newLayers`? Using single
+        ## the subset of Xa.OSI which is the same size as `layers`? Using single
         ## element subsetting assumes row-major ordering.
-        I <- matrix(Xa.OSI[seq(terra::nrow(newLayers) * terra::ncol(newLayers))],
-                    nrow = terra::nrow(newLayers),
-                    ncol = terra::ncol(newLayers),
+        I <- matrix(Xa.OSI[seq(terra::nrow(layers) * terra::ncol(layers))],
+                    nrow = terra::nrow(layers),
+                    ncol = terra::ncol(layers),
                     byrow = TRUE)
 
         ## NOTE: if an area is uninhabitable replace its value with zero; it
@@ -1224,10 +1162,10 @@ SVEIRD.BayesianDataAssimilation <-
         ## layer with NAs would be better than this.
         I[valInhabitable == 0] <- 0
         cumulativeInfected %<>% sum(I - Infected.prior); stopifnot(length(cumulativeInfected) == 1)
-        newLayers$Exposed <- rat * "values<-"(newLayers$Infected, I)
+        layers$Exposed <- rat * "values<-"(layers$Infected, I)
       }
 
-      layers.timeseries[[today]] <- newLayers
+      layers.timeseries[[today]] <- layers
     }
 
     ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
