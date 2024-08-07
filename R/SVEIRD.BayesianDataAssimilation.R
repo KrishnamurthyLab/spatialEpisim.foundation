@@ -230,6 +230,8 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
     "levels<-"(levels(.)[[1]])
 }
 
+## FIXME: refactor the return value so that the Inhabited layer doesn't
+## continually need to be ignored through subsetting the layers.
 ##' @title Create a SpatRaster of SVEIRD model compartment raster data
 ##' @description Create a list of SpatRaster objects, one for each component in
 ##'   an SVEIRD epidemic model.
@@ -526,21 +528,31 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   ## https://www.paulamoraga.com/book-spatial/spatial-neighborhood-matrices.html#neighbors-of-order-k-based-on-contiguity
   ## for more information. The index into the vector is one more than the order
   ## of the neighourhood the value at that index the value applies to.
-  neighbour.weights <- c(12e-2, 8e-2, 4e-2) * 5 / 7
+  ## neighbour.weights <- c(12e-2, 8e-2, 4e-2) * 5 / 7 # FIXME: what is 5/7?
+  ## Why? Magic numbers are bad!
+
+  ## There are thirty-five cells in this neighbourhood; the innermost cell has
+  ## three parts, the inner ring have two, and the outer ring have one.
+  neighbour.weights <- c(3, 2, 1) * 1 / 35
+  ## NOTE: the following verifies the weights.
+  ## sum(neighbour.weights[1], rep(neighbour.weights[2], 8), rep(neighbour.weights[3], 25 - 8 - 1))
 
   ## NOTE: seq_along(cells) produces a vector of indices, 1, 2, 3, ..., n, where
   ## n is the length of the number of cells. There is one cell for each health
   ## zone, so the index corresponds to the health zone and the cell for that
   ## health zone.
   for (index in seq_along(cells)) {
-    neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers))
-    neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers))
+    neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
+    neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
     if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
       simpleError("Duplicate cell indices among neighbours of multiple localities.")
     H.extended[index, cells[index]] <- neighbour.weights[1]
     H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
     H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
   }
+
+  warning(sprintf("sum(H) = %s (the linear interpolation operator matrix)", sum(H.extended)))
+  stopifnot(dplyr::near(sum(H.extended), 1))
 
   if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended) # block diagonal matrix
   ## NOTE: these are unused, so they are commented out. For historical reasons, they are included.
@@ -562,7 +574,6 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
                 as.vector()
             }) %>% Matrix::t() # rows should be health zones
 
-  stopifnot(sum(interpolationOperatorMatrix) == 1)
   return(interpolationOperatorMatrix)
 }
 
@@ -573,7 +584,7 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
 ##'   layer classifying habitation. Created with the getSVEIRD.SpatRaster
 ##'   function.
 ##' @param variableCovarianceFunction TODO
-##' @param Q.backgroundErrorStandardDeviation TODO
+##' @param Q.backgroundErrorStandardDeviatio TODO
 ##' @param Q.characteristicCorrelationLength TODO
 ##' @param neighbourhood TODO
 ##' @param compartmentsReported TODO
@@ -934,42 +945,33 @@ SVEIRD.BayesianDataAssimilation <-
       }
     }
 
-    adjustedSusceptible <- layers$Susceptible - layers$Vaccinated - layers$Exposed - layers$Infected - layers$Recovered - layers$Dead
-    message(sprintf("Adjusting the susceptible layer to account for seeded epidemic compartments…\nSusceptible before seeding = %s\nSusceptible after seeding = %s\n",
-                    terra::global(layers$Susceptible, sum, na.rm = TRUE),
-                    terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
+    adjustedSusceptible <- layers$Susceptible -
+      layers$Vaccinated -
+      layers$Exposed -
+      layers$Infected -
+      layers$Recovered -
+      layers$Dead
+
+    message(sprintf(r"{Adjusting the susceptible layer to account for seeded epidemic compartments…
+Susceptible before seeding = %s
+Susceptible after seeding = %s
+}",
+terra::global(layers$Susceptible, sum, na.rm = TRUE),
+terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
+
     layers$Susceptible <- adjustedSusceptible
 
     if (dataAssimilationEnabled) {
-      ## Generate the linear interpolation operator matrix (function works for
-      ## two compartments, at most).
-      linearInterpolationMatrix <-
-        linearInterpolationOperator(layers,
-                                    healthZoneCoordinates,
-                                    compartmentsReported)
-
-      ## NOTE: the determinant and dimensions of the matrices are unused, but
-      ## are easily calculated; NOTE: Q and H are both block diagonal, sparse
-      ## matrices (but not of class sparseMatrix:
-      ## <https://stat.ethz.ch/R-manual/R-patched/library/Matrix/html/sparseMatrix-class.html>).
-      ## NOTE: create the model error covariance matrix, which, given we are
-      ## using an ensemble-type data assimilation process, is time invariant.
-      ## Immediately it is used to calculate QHt, and otherwise is unused.
-      Q <- Q.forecastErrorCov(layers,
-                              variableCovarianceFunction,
-                              Q.backgroundErrorStandardDeviation,
-                              Q.characteristicCorrelationLength,
-                              neighbourhood,
-                              compartmentsReported)
-      QHt <- Q %*% Matrix::t(linearInterpolationMatrix)
-      HQHt <- linearInterpolationMatrix %*% QHt
-
-      ## NOTE: this is based on old, dead code from the previous implementation,
-      ## and also based on commented code from a StackOverflow question Ashok
-      ## asked five years ago: https://codereview.stackexchange.com/q/224536. It
-      ## probably isn't necessary to retain, but it's here. Ashok can make a
-      ## decision about its usage later.
-      ## stopifnot(sum(eigen(Q)$values) == ncell(layers))
+      matrices.Bayes <-
+        setupBayesianDataAssimilation(layers,
+                                      healthZoneCoordinates,
+                                      compartmentsReported,
+                                      variableCovarianceFunction,
+                                      Q.backgroundErrorStandardDeviation,
+                                      Q.characteristicCorrelationLength,
+                                      neighbourhood)
+      HQHt <- matrices.Bayes$HQHt
+      QHt <- matrices.Bayes$QHt
     }
 
     ## NOTE: preallocate the list which will hold a timeseries of SpatRaster
@@ -983,8 +985,8 @@ SVEIRD.BayesianDataAssimilation <-
     ## one (for one-based indexing). The rows are weekly data; it may be easier
     ## to simply check if there is more data to assimilate, and whenever the
     ## simulation date is one day before or the same day as the observed data it
-    ## is then assimilated. pre-allocating the row from which we read the data
-    ## to assimilate each week
+    ## is then assimilated. Using a sentinel value for the row from which we
+    ## read the data to assimilate each week is unnecessary, though easy.
     datarow <- 1
 
     reclassifyNegatives <-
@@ -1088,63 +1090,16 @@ SVEIRD.BayesianDataAssimilation <-
                                   today %% 7 == 0,
                                   datarow < nrow(incidenceData))
       if (shouldAssimilateData) {
+        infectedExposedLayers <- assimilateData(layers,
+                                                linearInterpolationMatrix,
+                                                incidenceData,
+                                                healthZoneCoordinates,
+                                                psi.diagonal,
+                                                QHt,
+                                                HQHt)
+        layers$Infected <- infectedExposedLayers$Infected
+        layers$Exposed <- infectedExposedLayers$Exposed
         datarow <- datarow + 1
-
-        ## NOTE: Optimal statistical inference: forecast state. NOTE: We track
-        ## the compartments representing the states of being infectious or dead.
-        Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
-
-        Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-        ## TODO: this needs a more descriptive name; what is RAT? I forget already. 🐀
-        rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
-
-        ## NOTE: see "Conjecture (Ⅰ)" in "Notes about covariance matrices" in
-        ## the Google Drive folder for information on the motivation for
-        ## transposing the matrix twice.
-        Xf.OSI <- Infected %>%
-          Matrix::t() %>%
-          as.vector() %>%
-          Matrix::t() %>%
-          Matrix::t()
-
-        HXf <- linearInterpolationMatrix %*% Xf.OSI
-
-        ## Pick a row every 7 n.days. NOTE: select third column through to the
-        ## last column by adding two the sequence. NOTE: create the measurement
-        ## error covariance matrix.
-        D.v <- as.vector(incidenceData[datarow, 1:nrow(healthZoneCoordinates) + 2])
-        D.v[D.v < 1] <- psi.diagonal
-
-        ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
-        ## are assimilated.
-        Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v)) # MAYBE FIXME: is the point to just add psi.diagonal?
-
-        ## THEM NOTE: Optimal statistical inference update step: analysis state.
-        Xa.OSI <- Xf.OSI + Ke.OSI %*% (as.numeric(D.v) - HXf)
-        Xa.OSI[Xa.OSI < 0] <- 0
-
-        ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
-        ## "seq(terra::nrow(layers) * terra::ncol(layers))", requiring us to
-        ## subset it so that I is not too large? NOTE: when RESTACKING make sure
-        ## byrow = TRUE. NOTE: what is restacking? Why did I choose this word
-        ## when I wrote the first part of this comment a week ago? NOTE: take
-        ## the subset of Xa.OSI which is the same size as `layers`? Using single
-        ## element subsetting assumes row-major ordering.
-        I <- matrix(Xa.OSI[seq(terra::nrow(layers) * terra::ncol(layers))],
-                    nrow = terra::nrow(layers),
-                    ncol = terra::ncol(layers),
-                    byrow = TRUE)
-
-        ## NOTE: if an area is uninhabitable replace its value with zero; it
-        ## makes more sense to instead use NA values to prevent calculating
-        ## values for uninhabitable areas. MAYBE TODO: a raster with
-        ## uninhabitable areas which can mask the susceptible and any other
-        ## layer with NAs would be better than this.
-        layers$Infected <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
-                                       layers$Inhabited,
-                                       maskvalues = 0,
-                                       updatevalue = 0)
-        layers$Exposed <- rat * layers$Infected
       }
 
       layers.timeseries[[today]] <- layers
@@ -1160,4 +1115,149 @@ SVEIRD.BayesianDataAssimilation <-
     summaryTable[is.na(summaryTable)] <- 0
     return(list(table = tibble::as_tibble(summaryTable),
                 rast = layers))
+  }
+
+##' Using the provided parameters and SpatRaster, the necessary setup functions
+##' and values for Bayesian data assimilation are called, with values used later
+##' on returned.
+##' @title Setup Bayesian data assimilation
+##' @param layers a SpatRaster with the following layers: Susceptible,
+##'   Vaccinated, Exposed, Infected, Recovered, and Dead.
+##' @param healthZoneCoordinates a dataframe with three columns, a location
+##'   name, latitude, and longitude describing the geographical locations of
+##'   reporting health zones.
+##' @param compartmentsReported the number of compartments or epidemic states
+##'   reported on; either one or two. Higher numbers are not supported. One
+##'   corresponds only to infection, while two compartments corresponds to
+##'   exposure and infection.
+##' @param variableCovarianceFunction a function to calculate the error covariance, returned by Q.forecastErrorCov.
+##' @param Q.backgroundErrorStandardDeviation the "background" or default amount of error, in standard deviations.
+##' @param Q.characteristicCorrelationLength
+##' @param neighbourhood
+##' @returns the HQHt matrix
+##' @author Bryce Carson
+setupBayesianDataAssimilation <-
+  function(layers,
+           healthZoneCoordinates,
+           compartmentsReported,
+           variableCovarianceFunction,
+           Q.backgroundErrorStandardDeviation,
+           Q.characteristicCorrelationLength,
+           neighbourhood) {
+    ## Generate the linear interpolation operator matrix (function works for
+    ## two compartments, at most).
+    H <- linearInterpolationMatrix <-
+      linearInterpolationOperator(layers,
+                                  healthZoneCoordinates,
+                                  compartmentsReported)
+
+    ## NOTE: Q and H are both block diagonal, sparse matrices (but not of
+    ## class sparseMatrix:
+    ## <https://stat.ethz.ch/R-manual/R-patched/library/Matrix/html/sparseMatrix-class.html>).
+    ## NOTE: create the model error covariance matrix, which, given we are
+    ## using an ensemble-type data assimilation process, is time invariant.
+    ## Immediately it is used to calculate QHt, and otherwise is unused.
+    Q <- forecastErrorCovarianceMatrix <-
+      Q.forecastErrorCov(layers,
+                         variableCovarianceFunction,
+                         Q.backgroundErrorStandardDeviation,
+                         Q.characteristicCorrelationLength,
+                         neighbourhood,
+                         compartmentsReported)
+    QHt <- Q %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
+    HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
+
+    ## NOTE: this is based on old, dead code from the previous implementation,
+    ## and also based on commented code from a StackOverflow question Ashok
+    ## asked in July 2019: https://codereview.stackexchange.com/q/224536. It
+    ## probably isn't necessary to retain, but it's here. Ashok can make a
+    ## decision about its usage later. stopifnot(sum(eigen(Q)$values) ==
+    ## ncell(layers))
+
+    return(list(QHt = QHt, HQHt = HQHt))
+  }
+
+##' Assimilation of data (Bayesian) using optimal statistical inference, a
+##' modified Kalman Filter.
+##' @title Bayesian data assimilation
+##' @param layers 
+##' @param linearInterpolationMatrix 
+##' @param incidenceData 
+##' @param healthZoneCoordinates 
+##' @param psi.diagonal 
+##' @param QHt 
+##' @param HQHt 
+##' @returns 
+##' @author Bryce Carson
+assimilateData <-
+  function(layers,
+           linearInterpolationMatrix,
+           incidenceData,
+           healthZoneCoordinates,
+           psi.diagonal,
+           QHt,
+           HQHt) {
+    ## NOTE: Optimal statistical inference: forecast state. NOTE: We track
+    ## the compartments representing the states of being infectious or dead.
+    Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
+
+    Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
+    ## TODO: this needs a more descriptive name; what is RAT? I forget already. 🐀
+    rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
+
+    ## NOTE: see "Conjecture (Ⅰ)" in "Notes about covariance matrices" in
+    ## the Google Drive folder for information on the motivation for
+    ## transposing the matrix twice.
+    Xf.OSI <- Infected %>%
+      Matrix::t() %>%
+      as.vector() %>%
+      Matrix::t() %>%
+      Matrix::t()
+
+    HXf <- linearInterpolationMatrix %*% Xf.OSI
+
+    ## Pick a row every 7 n.days. NOTE: select third column through to the
+    ## last column by adding two the sequence. NOTE: create the measurement
+    ## error covariance matrix.
+    D.v <- as.vector(incidenceData[datarow, 1:nrow(healthZoneCoordinates) + 2])
+    D.v[D.v < 1] <- psi.diagonal
+
+    ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
+    ## are assimilated.
+    Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v)) # MAYBE FIXME: is the point to just add psi.diagonal?
+
+    ## THEM NOTE: Optimal statistical inference update step: analysis state.
+    Xa.OSI <- Xf.OSI + Ke.OSI %*% (as.numeric(D.v) - HXf)
+    Xa.OSI[Xa.OSI < 0] <- 0
+
+    ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
+    ## "seq(terra::nrow(layers) * terra::ncol(layers))", requiring us to
+    ## subset it so that I is not too large? NOTE: when RESTACKING make sure
+    ## byrow = TRUE. NOTE: what is restacking? Why did I choose this word
+    ## when I wrote the first part of this comment a week ago? NOTE: take
+    ## the subset of Xa.OSI which is the same size as `layers`? Using single
+    ## element subsetting assumes row-major ordering.
+    I <- matrix(Xa.OSI[seq(terra::nrow(layers) * terra::ncol(layers))],
+                nrow = terra::nrow(layers),
+                ncol = terra::ncol(layers),
+                byrow = TRUE)
+
+    ## NOTE: if an area is uninhabitable replace its value with zero; it
+    ## makes more sense to instead use NA values to prevent calculating
+    ## values for uninhabitable areas. MAYBE TODO: a raster with
+    ## uninhabitable areas which can mask the susceptible and any other
+    ## layer with NAs would be better than this.
+    infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
+                                   layers$Inhabited,
+                                   maskvalues = 0,
+                                   updatevalue = 0)
+    ## MAYBE FIXME: how, exaclty, does the number of compartments reported
+    ## impact the assimilation of the data? What is the influence of the
+    ## number of compartments reported on the overriding of Infected and
+    ## Exposed, if only Infected data is observed? What if Infected and
+    ## Exposed data are observed and assimilated, how is RAT used then?
+    ## Should any changes be made in that case from the usual algorithm?
+    exposures <- rat * layers$Infected
+
+    return(list(Infected = infectious, Exposed = exposures))
   }
