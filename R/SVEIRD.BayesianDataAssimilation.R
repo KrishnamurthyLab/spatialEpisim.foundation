@@ -474,7 +474,7 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
   ## A second order neighbour can't be calculated with the current algorithm if
   ## the number of columns is less than five.
   stopifnot(ncol(layers) >= 5)
-  stopifnot(compartmentsReported %in% 1:2)
+  stopifnot(compartmentsReported %in% 1:2) # NOTE: this is defensive programming; I've only implemented these cases.
 
   queensNeighbours <- function(order, cell, ncols) {
     stopifnot(order %in% 1:2)
@@ -550,16 +550,20 @@ linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartme
 
   ## NOTE: the extended areas of the matrix are now dropped to return the matrix
   ## to the expected size for the input.
-  apply(X = H.extended,
-        MARGIN = 1, # apply the function to rows
-        FUN =
-          function(row) {
-            m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-            m[(extend.length + 1):(terra::nrow(m) - extend.length),
+  interpolationOperatorMatrix <-
+    apply(X = H.extended,
+          MARGIN = 1, # apply the function to rows
+          FUN =
+            function(row) {
+              m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
+              m[(extend.length + 1):(terra::nrow(m) - extend.length),
               (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
-              Matrix::t() %>% # row-major order (byrow)
-              as.vector()
-          }) %>% Matrix::t() # rows should be health zones
+                Matrix::t() %>% # row-major order (byrow)
+                as.vector()
+            }) %>% Matrix::t() # rows should be health zones
+
+  stopifnot(sum(interpolationOperatorMatrix) == 1)
+  return(interpolationOperatorMatrix)
 }
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
