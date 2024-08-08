@@ -20,13 +20,13 @@ function.}
 
 \item{variableCovarianceFunction}{TODO}
 
-\item{Q.backgroundErrorStandardDeviation}{TODO}
-
 \item{Q.characteristicCorrelationLength}{TODO}
 
 \item{neighbourhood}{TODO}
 
 \item{compartmentsReported}{TODO}
+
+\item{Q.backgroundErrorStandardDeviatio}{TODO}
 }
 \value{
 TODO

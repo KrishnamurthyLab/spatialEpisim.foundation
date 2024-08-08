@@ -20,6 +20,7 @@ Plot a raster cropped to a specific region(s)
 As a side effect, it writes a raster to file.
 }
 \examples{
+library(lattice)
 subregionsSpatVector <- terra::vect(
   system.file(
     "extdata",
@@ -37,8 +38,9 @@ susceptibleSpatRaster <- terra::rast(
     mustWork = TRUE
   )
 )
-levelplot(maskAndClassifySusceptibleSpatRaster(subregionsSpatVector,
-                                               susceptibleSpatRaster))
+masked <- maskAndClassifySusceptibleSpatRaster(subregionsSpatVector,
+                                               susceptibleSpatRaster)
+terra::plot(masked)
 
 \dontrun{
 maskAndClassifySusceptibleSpatRaster(getSubregion("CZE", "Prague"),

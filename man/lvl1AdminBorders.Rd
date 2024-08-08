@@ -4,10 +4,10 @@
 \alias{lvl1AdminBorders}
 \title{Retrieve a SpatRaster of level 1 boundaries from local or remote disk}
 \usage{
-lvl1AdminBorders(countryISO3C, folder = geodata_path())
+lvl1AdminBorders(countryCodeISO3C, folder = geodata::geodata_path())
 }
 \arguments{
-\item{countryISO3C}{The uppercase ISO three character code a recognized
+\item{countryCodeISO3C}{The uppercase ISO three character code a recognized
 country.}
 
 \item{folder}{The path where GADM data should be found or stored; passed on
@@ -17,23 +17,29 @@ to geodata::gadma.}
 SpatVector
 }
 \description{
-Returns a SpatVector for the requested country on demand, either retrieving
-the data from disk if it has been downloaded before, or downloading it for
-the first time.
+Returns a \link[terra:SpatVector-class]{terra::SpatVector} for the requested country on demand, either
+retrieving the data from disk if it has been downloaded before, or
+downloading the SpatVector to disk at the location determined by
+\code{\link[geodata:geodata_path]{geodata::geodata_path()}}.
 }
 \details{
-The level one boundaries are the least granular administrative boundaries
-that countries create to subdivide themselves.
+The level one boundaries are the least granular (geographically largest)
+administrative boundaries that countries create to subdivide themselves.
+
+The default resolution is one kilometer, meaning points in the vector are no
+closer to each other than one kilometer, therefore details smaller than one
+kilometer cannot be differentiated using this data.
 }
 \examples{
+library(geodata)
 geodata_path_backup <- geodata_path()
-options(geodata_default_path = tempdir())
+options(geodata_default_path = getOption("spatialEpisim.foundation.datapath"))
 lvl1AdminBorders("COD")
 options(geodata_default_path = geodata_path_backup)
 
 \dontrun{
-## It's recommended to set geodata_default_path rather than explicitly set
-## the path
+## It's recommended to set geodata_default_path in your .Rprofile rather
+## than explicitly provide the path.
 lvl1AdminBorders("COD", file.path("data", "gadm"))
 }
 }

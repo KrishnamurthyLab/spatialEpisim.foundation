@@ -95,9 +95,7 @@ susceptibleSpatRaster <- terra::rast(
     mustWork = TRUE
   )
 )
-healthZonesCongo <- read.csv(here("data",
-                                  "observed",
-                                  "Ebola_Health_Zones_LatLon.csv"))
+data("healthZonesCongo", package = "spatialEpisim.foundation")
 linearInterpolationOperator(
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,

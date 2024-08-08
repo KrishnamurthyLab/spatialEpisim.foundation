@@ -10,15 +10,14 @@ SVEIRD.BayesianDataAssimilation(
   gamma,
   sigma,
   delta,
-  radius,
-  lambda,
   n.days,
   seedData,
   seedRadius = 0,
+  lambda,
   layers,
   rasterAgg,
   startDate,
-  countryISO3C,
+  countryCodeISO3C,
   incidenceData = NULL,
   deathData = NULL,
   simulationIsDeterministic = TRUE,
@@ -43,25 +42,25 @@ SVEIRD.BayesianDataAssimilation(
 
 \item{delta}{The fatality rate (per day)}
 
-\item{radius}{The distance, in kilometers, a given individual travels from
-their starting point (on average, per day)}
-
-\item{lambda}{The probability that an individual will move the distance
-governed by radius}
-
 \item{n.days}{The number of days the simulation will run for, beginning from
 the startDate.}
 
 \item{seedData}{a dataframe like the following example; the compartment
 columns are the initial values.
 
-\preformatted{ Location Latitude Longitude Vaccinated Exposed Infected
-    Recovered Dead Beni 0.49113 29.47306 0 24 12 0 4 Butembo 0.140692
-    29.335014 0 0 0 0 0 Mabalako 0.461257 29.210687 0 0 0 0 0 Mandima
-    1.35551 29.08173 0 0 0 0 0 }}
+\preformatted{
+  Location Latitude Longitude Vaccinated Exposed Infected Recovered Dead
+  Beni     0.49113  29.47306  0          24      12       0         4
+  Butembo  0.140692 29.335014 0          0       0        0         0
+  Mabalako 0.461257 29.210687 0          0       0        0         0
+  Mandima  1.35551  29.08173  0          0       0        0         0
+}}
 
 \item{seedRadius}{The number of cells over which to average the seed data in
 a Moore neighbourhood for each locality.}
+
+\item{lambda}{The probability that an individual will move the distance
+governed by radius.}
 
 \item{layers}{The SpatRaster object with SVEIRD compartment layers, and a
 layer classifying habitation. Created with the getSVEIRD.SpatRaster
@@ -73,13 +72,14 @@ that used to generate the SpatRaster for layers.}
 
 \item{startDate}{The date (in YYYY-MM-DD format) the simulation begins.}
 
-\item{countryISO3C}{The ISO three character code for a recognized country.}
+\item{countryCodeISO3C}{The ISO three character code for a recognized country.}
 
 \item{incidenceData}{A "situation report" dataframe. The first column
 provides the date of the officially reported, observed incidence of the
 disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 parameter to be one week prior to the first observed data?
 
+TODO: fix the formatting here. What happened to my beautiful table?
 \preformatted{ Date Beni Butembo Mabalako Mandima 2018-08-05 34 34 34 34
     2018-08-12 2 0 11 1 2018-08-20 1 0 37 6 2018-08-26 5 0 3 0 2018-08-02 8
     0 1 1 2018-08-09 5 2 1 1 }}
@@ -146,7 +146,7 @@ Q matrix.}
 called every time the main loop of the simulation iterates.}
 }
 \value{
-a summary dataframe for the simulation, showing changes in the
+a summaryTable dataframe for the simulation, showing changes in the
 compartment values over time, the daily values, and cumulative values.
 }
 \description{
@@ -195,9 +195,10 @@ SVEIRD.BayesianDataAssimilation(
                                 aggregationFactor = 35),
   rasterAgg = 35,
   startDate = "2018-08-05",
-  countryISO3C = "COD",
+  countryCodeISO3C = "COD",
   incidenceData = Congo.EbolaIncidence,
   ## Model options
+  simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = TRUE,
   healthZoneCoordinates = healthZonesCongo,
   variableCovarianceFunction = "DBD",

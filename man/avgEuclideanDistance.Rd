@@ -25,11 +25,11 @@ position (u, v).
 \details{
 The mathematical modelling of human or non-human mobility patterns
 is non-trivial. This function is a limited implementation of the effective
-area for only human mobility, with distances travelled per day (λ)
+area for only human mobility, with distances travelled per day (lambda)
 measured in kilometers.
 
 NOTE: Our weight function does not take the same arguments as shown in the
-slideshow: (𝑤 x y u v); The term “effective area” comes from the fact that
+slideshow: (w x y u v); The term "effective area" comes from the fact that
 if the kernel is constant on a finite disk (and zero outside it), then the
 formula due to Bolker (1999) gives the area of the disk.
 

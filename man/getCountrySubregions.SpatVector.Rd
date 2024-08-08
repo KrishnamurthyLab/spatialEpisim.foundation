@@ -5,13 +5,13 @@
 \title{Get a country's GADM verison 3.6 raster}
 \usage{
 getCountrySubregions.SpatVector(
-  countryISO3C = "COD",
+  countryCodeISO3C = "COD",
   level1Region = c("Nord-Kivu", "Ituri"),
   folder
 )
 }
 \arguments{
-\item{countryISO3C}{The uppercase ISO three character code a recognized
+\item{countryCodeISO3C}{The uppercase ISO three character code a recognized
 country.}
 
 \item{level1Region}{The subregions of the country to crop to}
@@ -26,8 +26,9 @@ SpatVector for the specificed country.
 Read an RDS file from the GADM folder for a given country's subregion.
 }
 \examples{
+library(geodata)
 geodata_path_backup <- geodata_path()
-options(geodata_default_path = tempdir())
+options(geodata_default_path = getOption("spatialEpisim.foundation.datapath"))
 getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri"))
 getCountrySubregions.SpatVector("CZE", "Prague")
 getCountrySubregions.SpatVector("NGA", "Kwara")

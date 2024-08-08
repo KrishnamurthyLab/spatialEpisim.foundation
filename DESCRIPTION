@@ -26,7 +26,6 @@ Imports:
     countrycode,
     dplyr,
     geodata,
-    here,
     httr2,
     magrittr,
     Matrix,
@@ -37,7 +36,8 @@ Imports:
     tidyr,
     utils
 Suggests:
-  readxl
+  readxl,
+  lattice
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

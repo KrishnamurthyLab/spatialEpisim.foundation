@@ -4,10 +4,13 @@
 \alias{downloadWorldPopData}
 \title{Download WorldPop 2020 data}
 \usage{
-downloadWorldPopData(countryISO3C, folder = here::here("data", "geotiff"))
+downloadWorldPopData(
+  countryCodeISO3C,
+  folder = getOption("spatialEpisim.foundation.datapath")
+)
 }
 \arguments{
-\item{countryISO3C}{The uppercase ISO three character code a recognized
+\item{countryCodeISO3C}{The uppercase ISO three character code a recognized
 country.}
 
 \item{folder}{The destination folder the downloaded data will be stored in}
@@ -27,12 +30,12 @@ path).
 ppp is the code used by WorldPop to mean population estimate for population
 counts; similar data, but which grids population density is coded \emph{pd}
 rather than \emph{ppp}. 1km means 1 km aggregation of the data. The description
-WorldPop gives for this data is «individual countries 2000-2020 UN adjusted
+WorldPop gives for this data is "individual countries 2000-2020 UN adjusted
 aggregated to 1km resolution using 100m resolution population count
-datasets». See: https://hub.worldpop.org/doi/10.5258/SOTON/WP00671.
+datasets". See: https://hub.worldpop.org/doi/10.5258/SOTON/WP00671.
 }
 \examples{
-downloadWorldPopData("COD", here("data", "geotiff"))
+downloadWorldPopData(countryCodeISO3C = "COD", folder = tempdir())
 }
 \author{
 Bryce Carson

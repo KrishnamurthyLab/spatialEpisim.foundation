@@ -4,10 +4,10 @@
 \alias{getCountryPopulation.SpatRaster}
 \title{Create a Susceptible-component RasterLayer}
 \usage{
-getCountryPopulation.SpatRaster(countryISO3C, folder = NULL)
+getCountryPopulation.SpatRaster(countryCodeISO3C, folder = NULL)
 }
 \arguments{
-\item{countryISO3C}{The uppercase ISO three character code a recognized
+\item{countryCodeISO3C}{The uppercase ISO three character code a recognized
 country.}
 
 \item{folder}{Passed on to method downloadWorldPopData}
@@ -21,10 +21,7 @@ Create a named RasterLayer object useful for spatiotemporal epidemic
 compartmental modelling.
 }
 \examples{
-geodata_path_backup <- geodata_path()
-options(geodata_default_path = tempdir())
 getCountryPopulation.SpatRaster("COD")
-options(geodata_default_path = geodata_path_backup)
 }
 \author{
 Bryce Carson

@@ -18,7 +18,7 @@ a raster of terrestrial data.}
 data mentioned in the function details.}
 }
 \value{
-a matrix of weightings for the calculation of the proportion of
+a matrix of weightings for the calculation of the proportionOfSusceptible of
 exposed individuals who will become infectious.
 }
 \description{
@@ -31,9 +31,28 @@ here:
 https://docs.google.com/presentation/d/1_gqcEh4d8yRy22tCZkU0MbGYSsGu3Djh/edit?usp=sharing&ouid=102231457806738400087&rtpof=true&sd=true.
 }
 \examples{
-## TODO FIXME
-terra::as.matrix(Infected, wide = TRUE) \%>\%
-  transmissionLikelihoodWeightings(30, 15, 35)
+library(terra)
+subregionsSpatVector <- vect(
+  system.file(
+    "extdata",
+    ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+    "subregionsSpatVector",
+    package = "spatialEpisim.foundation",
+    mustWork = TRUE
+  )
+)
+susceptibleSpatRaster <- rast(
+  system.file(
+    "extdata",
+    "susceptibleSpatRaster.tif", # Congo population
+    package = "spatialEpisim.foundation",
+    mustWork = TRUE
+  )
+)
+layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
+                               susceptibleSpatRaster,
+                               aggregationFactor = 35)
+transmissionLikelihoodWeightings(layers$Infected, 1, 15, 35)
 }
 \author{
 Bryce Carson
