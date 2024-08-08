@@ -715,29 +715,6 @@ Valid function names are:
   return(Q)
 }
 
-##' This is a convenience function to make subassignment a little easier. It
-##' doesn't need names like subset appears to need, and it allows passing
-##' functions as values.
-##'
-##' The value z is used to replace the vector elements with the provided value
-##' z (zed).
-##'
-##' The vector subset, w, is subset with the function f of x and x, and z
-##' assigned to these elements. See the function body for more details.
-##' @title Replace logical vectors derived from inequalities with z value
-##' @param f the binary operator function to use to calculate the logical vector
-##'   for subsetting w.
-##' @param w the vector to subset and subassign within.
-##' @param x the first argument of f.
-##' @param y the second argument of y (if applicable).
-##' @param z the value to assign to the logical subset of w.
-##' @returns w, with the modified values, so that it can be used in a pipe.
-##' @keywords internal
-##' @author Bryce Carson
-replaceInequalityWith <- function(f, w, x, y = NULL, z) {
-  if (!is.null(y)) return((w[f(x, y)] <- z))
-  else return((w[f(x)] <- z))
-}
 
 ##' @description Run a SVEIRD compartmental model of an epidemic, optionally
 ##'   using Bayesian data assimilation.
