@@ -292,6 +292,8 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
     susceptible <- terra::aggregate(susceptible, aggregationFactor)
   }
 
+  ## MAYBE FIXME: why less than zero? Shouldn't this be "not a positive number"
+  ## instead?
   terra::values(susceptible)[terra::values(susceptible) < 0] <- 0
   Inhabited <- susceptible
   terra::values(Inhabited)[terra::values(Inhabited) > 0] <- 1
