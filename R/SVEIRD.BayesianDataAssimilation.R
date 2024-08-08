@@ -117,7 +117,7 @@ lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata::geodata_path())
 ##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder Passed on to method downloadWorldPopData
-##' @returns A RasterLayer of WorldPop population count data with the name
+##' @returns A SpatRaster of WorldPop population count data with the name
 ##'   Susceptible, with all NAs replaced by zeros.
 ##' @author Bryce Carson
 ##' @author Michael Myer
