@@ -717,7 +717,6 @@ Valid function names are:
   return(Q)
 }
 
-
 ##' @description Run a SVEIRD compartmental model of an epidemic, optionally
 ##'   using Bayesian data assimilation.
 ##' @details TODO: DETAILS of the function.
