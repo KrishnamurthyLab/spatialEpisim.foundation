@@ -1390,20 +1390,21 @@ assimilateData <-
 castSeedDataQueensNeighbourhood <- function(seedData, neighbourhood.order, layers) {
   stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order), ceiling(neighbourhood.order)))
 
+  ## NOTE: evenly spread the count of exposed and infected persons across a
+  ## Chess Queen's neighbourhood of a given order; this value is assigned to
+  ## each cell of a neighbourhood of the same order in the SpatRaster, centered
+  ## about the proper SpatRaster cell.
+  neighbourhoodQuotient <- function(x) x / (2 * neighbourhood.order + 1)^2
   seedData.equitable <-
     dplyr::group_by(seedData, Location) %>%
     dplyr::summarize(dplyr::across(c("InitialExposed", "InitialInfections"),
-                                   ## NOTE: the numerator is the exposed and infected
-                                   ## compartment; the denominator is a parabolic function
-                                   ## of the seedRadius.
-                                   function(x) x / (2 * neighbourhood.order + 1)^2)) %>%
+                                   neighbourhoodQuotient)) %>%
     dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
   for (seedingLocation in seedData.equitable$Location) {
-    data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
-
     ## Get row and column numbers from the latitude and longitude for this
     ## health region.
+    data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
     row <- terra::rowFromY(layers, data$lat)
     col <- terra::colFromX(layers, data$lon)
 
