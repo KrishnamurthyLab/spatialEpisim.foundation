@@ -293,20 +293,20 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
   susceptible <- maskAndClassifySusceptibleSpatRaster(subregions, susceptible)
 
   if (!is.null(aggregationFactor)) {
-    susceptible <- terra::aggregate(susceptible, aggregationFactor)
+    susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = sum)
   }
 
-  ## MAYBE FIXME: why less than zero? Shouldn't this be "not a positive number"
-  ## instead?
   terra::values(susceptible)[terra::values(susceptible) < 0] <- 0
   Inhabited <- susceptible
   terra::values(Inhabited)[terra::values(Inhabited) > 0] <- 1
   terra::values(Inhabited)[terra::values(Inhabited) < 1] <- 0
 
-  ## The values are EXACTLY equal, so I won't use this faster code.
-  ## Inhabited <- classify(susceptible, matrix(c(c(-Inf, 1, 0), c(0, Inf, 1)), nrow = 2, byrow = TRUE))
-
-  empty <- terra::init(susceptible, fun = 0)
+  ## NOTE: It is faster to use fun = NA, rather than fun = 0, because
+  ## castSeedDataMooreNeighbourhood, for example, will not perform calculations,
+  ## rather than multiple many cells by zero to no effect; it also produces
+  ## clearer plots without values outside the bounds of the borders of the
+  ## spatial region of the geographical region represented in the raster.
+  empty <- terra::init(susceptible, fun = NA)
   c(susceptible, rep(empty, 5), Inhabited) %>%
     "names<-"(c("Susceptible",
                 "Vaccinated",
@@ -375,13 +375,17 @@ averageEuclideanDistance <-
       exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
     }
     len <- seq_len(1 + radius * 2)
-    dplyr::mutate(
-             tidyr::expand(tibble::tibble(i = len, j = len), i, j),
-             averageEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)
-           ) %>%
+    weights <-
+      dplyr::mutate(
+               tidyr::expand(tibble::tibble(i = len, j = len), i, j),
+               averageEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)
+             ) %>%
       dplyr::select(averageEuclideanDistance) %>%
       unlist(use.names = FALSE) %>%
       base::matrix(byrow = TRUE, ncol = sqrt(length(.)))
+    stopifnot(dim(weights)[1] == dim(weights)[2])
+    stopifnot(dim(weights)[1] %% 2 == 1)
+    return(weights)
   }
 
 ##' @title Weighted Sums
@@ -424,7 +428,7 @@ averageEuclideanDistance <-
 ##' transmissionLikelihoodWeightings(layers$Infected, 15, 35)
 transmissionLikelihoodWeightings <-
   function(infections, lambda, aggregationFactor) {
-    terra::focal(infections, averageEuclideanDistance(lambda, aggregationFactor))
+    terra::focal(infections, w = averageEuclideanDistance(lambda, aggregationFactor))
   }
 
 ##' @title Linear (Forward) Interpolation Operator matrices for one or two state
@@ -983,6 +987,7 @@ Susceptible after seeding = %s
 }",
 terra::global(layers$Susceptible, sum, na.rm = TRUE),
 terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
+    stopifnot(adjustedSusceptible > 1)
 
     layers$Susceptible <- adjustedSusceptible
 
@@ -1379,9 +1384,9 @@ assimilateData <-
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 35)
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
-##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 0, layers)
+##' plot(castSeedDataMooreNeighbourhood(initialInfections.fourCities, 0, layers))
 ##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 1, layers)
-##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 3, layers)
+##' plot(castSeedDataMooreNeighbourhood(initialInfections.fourCities, 3, layers))
 castSeedDataMooreNeighbourhood <- function(seedData, neighbourhood.order, layers) {
   stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order), ceiling(neighbourhood.order)))
 
@@ -1413,6 +1418,10 @@ castSeedDataMooreNeighbourhood <- function(seedData, neighbourhood.order, layers
       layers$Dead[row, col]                  <- data$InitialDead
     }
   }
+
+  seeds <- terra::subset(layers, "Susceptible", negate = TRUE) * -1
+  seededLayers <- c(terra::subset(layers, "Susceptible"), seeds)
+  layers$Susceptible <- sum(seededLayers, na.rm = TRUE)
 
   return(layers)
 }

@@ -5,7 +5,7 @@
 \title{Seed the initial infections, and other compartments, in a spatial
 simluation}
 \usage{
-castSeedDataMooreNeighbourhood(seedData, seedRadius, layers)
+castSeedDataMooreNeighbourhood(seedData, neighbourhood.order, layers)
 }
 \arguments{
 \item{seedData}{a dataframe like the following example; the compartment
@@ -19,8 +19,13 @@ columns are the initial values.
   Mandima  1.35551  29.08173  0          0       0        0         0
 }}
 
-\item{seedRadius}{The distance, in kilometers, a given individual travels from
-their starting point (on average, per day).}
+\item{neighbourhood.order}{The order of the queen's neighbourhood over which
+to distribute the Exposed and Infected intial state variable; zero is no
+neighbourhood, and corresponds to only the same cell where the queen
+already is. Higher orders follow the simple formula \code{(2 * x + 1)^2} to
+determine the number of cells over which to evenly disperse the exposed
+and infected state variables. All other state variables are placed
+directly in the grid cell corresponding to the health zone.}
 
 \item{layers}{The SpatRaster object with layers Susceptible, Vaccinated,
 Exposed, Infected, Recovered, and Dead.}
@@ -61,7 +66,9 @@ layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                susceptibleSpatRaster,
                                aggregationFactor = 35)
 data(initialInfections.fourCities, package = "spatialEpisim.foundation")
+castSeedDataMooreNeighbourhood(initialInfections.fourCities, 0, layers)
 castSeedDataMooreNeighbourhood(initialInfections.fourCities, 1, layers)
+castSeedDataMooreNeighbourhood(initialInfections.fourCities, 3, layers)
 }
 \author{
 Bryce Carson

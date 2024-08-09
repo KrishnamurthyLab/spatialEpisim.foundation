@@ -12,7 +12,7 @@ SVEIRD.BayesianDataAssimilation(
   delta,
   n.days,
   seedData,
-  seedRadius = 0,
+  neighbourhood.order = 0,
   lambda,
   layers,
   aggregationFactor,
@@ -47,8 +47,13 @@ the startDate.}
 
 \item{seedData}{a dataframe, as described in \link{initialInfections.fourCities}.}
 
-\item{seedRadius}{the distance (in kilometers) over which to disperse the
-initial state variable data from \code{seedData}.}
+\item{neighbourhood.order}{The order of the queen's neighbourhood over which
+to distribute the Exposed and Infected intial state variable; zero is no
+neighbourhood, and corresponds to only the same cell where the queen
+already is. Higher orders follow the simple formula \code{(2 * x + 1)^2} to
+determine the number of cells over which to evenly disperse the exposed
+and infected state variables. All other state variables are placed
+directly in the grid cell corresponding to the health zone.}
 
 \item{lambda}{the average dialy movement distance of an individual (in
 kilometers).}
@@ -194,7 +199,7 @@ SVEIRD.BayesianDataAssimilation(
   n.days = 31, # a month, permitting three assimilations of observed data
   ## Model data
   seedData = initialInfections.fourCities,
-  seedRadius = 1,
+  neighbourhood.order = 1,
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
                                 aggregationFactor = 35),
