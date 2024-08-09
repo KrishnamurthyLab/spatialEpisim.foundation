@@ -1419,6 +1419,8 @@ castSeedDataQueensNeighbourhood <- function(seedData, neighbourhood.order, layer
     }
   }
 
+  ## FIXME: this results in layer$Susceptible having negative values, which is
+  ## totally unrealistic!
   seeds <- terra::subset(layers, "Susceptible", negate = TRUE) * -1
   seededLayers <- c(terra::subset(layers, "Susceptible"), seeds)
   layers$Susceptible <- sum(seededLayers, na.rm = TRUE)
