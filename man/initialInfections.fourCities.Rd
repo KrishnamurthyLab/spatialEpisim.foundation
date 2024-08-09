@@ -3,7 +3,7 @@
 \docType{data}
 \name{initialInfections.fourCities}
 \alias{initialInfections.fourCities}
-\title{Seed data to use for a simulation of the 2018 Ebola epidmeic in the Congo}
+\title{2018 Congo Ebola epidmeic data}
 \format{
 \subsection{\code{initialInfections.fourCities}}{
 
@@ -23,6 +23,17 @@
 initialInfections.fourCities
 }
 \description{
-Seed data to use for a simulation of the 2018 Ebola epidmeic in the Congo
+"Seed" data to use for a simulation of the 2018 Ebola epidemic in the Congo
+}
+\details{
+Here is an example the data used.
+
+\preformatted{
+  Location Latitude Longitude Vaccinated Exposed Infected Recovered Dead
+  Beni     0.49113  29.47306  0          24      12       0         4
+  Butembo  0.140692 29.335014 0          0       0        0         0
+  Mabalako 0.461257 29.210687 0          0       0        0         0
+  Mandima  1.35551  29.08173  0          0       0        0         0
+}
 }
 \keyword{datasets}

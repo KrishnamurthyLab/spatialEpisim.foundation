@@ -1,4 +1,4 @@
-##' Set the options for this package, primarily set path
+##' Set the options for this package; primarily set path
 ##' `spatialEpisim.foundation.datapath` used for storing data used by this
 ##' package which is downloaded from the Web.
 ##'
@@ -6,8 +6,8 @@
 ##' value if it is not already set.
 ##' @title Cause side-effects when loading this package
 ##' @author Bryce Carson
-##' @param libname The name of the library loaded
-##' @param pkgname The name of the package loaded
+##' @param libname The name of the library in which the package is stored.
+##' @param pkgname The name of the loaded package.
 .onLoad <- function(libname, pkgname) {
   if(is.null(getOption("spatialEpisim.foundation.datapath"))) {
     options("spatialEpisim.foundation.datapath" = path.expand("~/spatialEpisim.foundation.data"))
@@ -15,6 +15,10 @@
       dir.create(getOption("spatialEpisim.foundation.datapath"),
                  recursive = TRUE,
                  showWarnings = TRUE)
+    else
+      warning(sprintf("%s already exists, but option `%s` was unset.",
+                      getOption("spatialEpisim.foundation.datapath"),
+                      "spatialEpisim.foundation.datapath"))
   }
 }
 
@@ -317,8 +321,14 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
 ##' @description Measure the exposure influence upon susceptible individuals at
 ##'   spatial position (x, y) of the infectious individuals at a spatial
 ##'   position (u, v).
-##' @details The mathematical modelling of human or non-human mobility patterns
-##'   is non-trivial. This function is a limited implementation of the effective
+##' @details The 2020 United Nations-adjusted population count raster data, at
+##'   the 30-arc second resolution, consists of hundreds of thousands (and for
+##'   some countries millions) of grid cells. This function is used to calculate
+##'   the average Euclidean distance from one cell to others, adjusting for
+##'   raster aggregation.
+##'
+##'   The mathematical modelling of human or non-human mobility patterns is
+##'   non-trivial. This function is a limited implementation of the effective
 ##'   area for only human mobility, with distances travelled per day (lambda)
 ##'   measured in kilometers.
 ##'
@@ -330,44 +340,49 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
 ##'   See the article titled *A clarification of transmission terms in
 ##'   host-microparasite models by Begon et al.* (2002).
 ##'
-##'   The raster data of infection counts or disease incidence provided to the
-##'   function which calls this one, transmissionLikelihoodWeightings, may be
-##'   aggregated by a given factor. That factor must be passed to this function
-##'   for parity, so the data is treated the same.
-##' @param radius TODO: a fixed radius r > lambda; see details.
-##' @param lambda movemenet distance (in kilometers) per day; see details.
-##' @param aggregationFactor the degree of aggregation applied to the raster
-##'   data mentioned in the function details.
+##'   The count of infected persons, or incidence, raster data provided to the
+##'   caller of this function, i.e. [transmissionLikelihoodWeightings], may be
+##'   aggregated by a given factor greater than one, `aggregationFactor`; it is
+##'   passed regardless.
+##' @param lambda the average dialy movement distance of an individual (in
+##'   kilometers).
+##' @param aggregationFactor the factor of aggregation applied to the raster
+##'   data mentioned in the function details (expressed in kilometers).
+##' @param epsilon a rounding error correction (a real number; by default,
+##'   zero).
 ##' @returns a matrix of the average Euclidean distances
 ##' @export
 ##' @keywords internal
 ##' @author Bryce Carson
 ##' @author Thomas White
 ##' @examples
-##' avgEuclideanDistance(radius = 1, lambda = 15)
-##' avgEuclideanDistance(radius = 1, lambda = 15, aggregationFactor = 35)
-avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
-  ## NOTE: "I have a philosophical and geometric question about these
-  ## identities: what do they imply about the dimension and magnitude of the
-  ## raster which the weighted number sum will be used with? Can we rid the
-  ## function of the radius argument and only accept the lambda argument, given
-  ## these identities and the claim made about the calculation of radius in the
-  ## slides?" --- Bryce
-  ## if (radius > lambda)
-  ##   stopifnot(r == round((lambda - aggregationFactor) / aggregationFactor) + 1)
-  ## else
-  ##   stopifnot(r == lambda + aggregationFactor)
+##' averageEuclideanDistance(lambda = 15) # No raster aggregation
+##' averageEuclideanDistance(lambda = 15, aggregationFactor = 35)
+##'
+##' lattice::levelplot(as.array(averageEuclideanDistance(15)))
+##' lattice::levelplot(as.array(averageEuclideanDistance(100, 35)))
+averageEuclideanDistance <-
+  function(lambda, aggregationFactor = 1, epsilon = 0) {
+    radius <-
+      if (lambda <= aggregationFactor)
+        round((lambda - aggregationFactor) / aggregationFactor + epsilon) + 1
+      else
+        lambda + aggregationFactor
 
-  len <- seq_len(1 + radius * 2)
-  df <- tidyr::expand(tibble::tibble(i = len, j = len), i, j)
-  avg.euc.dist <- function(i, j) {
-    exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
+    if (!radius %in% c(1, 2)) warning(sprintf("Radius not one or two; using %s", radius <- 1))
+
+    avg.euc.dist <- function(i, j) {
+      exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
+    }
+    len <- seq_len(1 + radius * 2)
+    dplyr::mutate(
+             tidyr::expand(tibble::tibble(i = len, j = len), i, j),
+             averageEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)
+           ) %>%
+      dplyr::select(averageEuclideanDistance) %>%
+      unlist(use.names = FALSE) %>%
+      base::matrix(byrow = TRUE, ncol = sqrt(length(.)))
   }
-  dplyr::mutate(df, avgEuclideanDistance = purrr::map2_dbl(i, j, avg.euc.dist)) %>%
-    dplyr::select(avgEuclideanDistance) %>%
-    unlist(use.names = FALSE) %>%
-    base::matrix(byrow = TRUE, ncol = sqrt(length(.)))
-}
 
 ##' @title Weighted Sums
 ##' @description Calculate a matrix of weights respecting human mobility
@@ -375,12 +390,9 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
 ##' @details The pattern of human mobility used is described in a slideshow
 ##'   here:
 ##'   https://docs.google.com/presentation/d/1_gqcEh4d8yRy22tCZkU0MbGYSsGu3Djh/edit?usp=sharing&ouid=102231457806738400087&rtpof=true&sd=true.
+##' @inherit SVEIRD.BayesianDataAssimilation
 ##' @param infections a matrix of the count of infections per aggregate area in
 ##'   a raster of terrestrial data.
-##' @param radius a constant; see details.
-##' @param lambda movemenet distance (in kilometers) per day; see details.
-##' @param aggregationFactor the degree of aggregation applied to the raster
-##'   data mentioned in the function details.
 ##' @returns a matrix of weightings for the calculation of the proportionOfSusceptible of
 ##'   exposed individuals who will become infectious.
 ##' @author Bryce Carson
@@ -409,10 +421,10 @@ avgEuclideanDistance <- function(radius, lambda, aggregationFactor = NULL) {
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 35)
-##' transmissionLikelihoodWeightings(layers$Infected, 1, 15, 35)
+##' transmissionLikelihoodWeightings(layers$Infected, 15, 35)
 transmissionLikelihoodWeightings <-
-  function(infections, radius, lambda, aggregationFactor) {
-    terra::focal(infections, avgEuclideanDistance(radius, lambda, aggregationFactor))
+  function(infections, lambda, aggregationFactor) {
+    terra::focal(infections, averageEuclideanDistance(lambda, aggregationFactor))
   }
 
 ##' @title Linear (Forward) Interpolation Operator matrices for one or two state
@@ -501,111 +513,128 @@ transmissionLikelihoodWeightings <-
 ##'                                 aggregationFactor = 35),
 ##'   healthZoneCoordinates = healthZonesCongo
 ##' )
-linearInterpolationOperator <- function(layers, healthZoneCoordinates, compartmentsReported = 1) {
-  ## A second order neighbour can't be calculated with the current algorithm if
-  ## the number of columns is less than five.
-  stopifnot(ncol(layers) >= 5)
-  stopifnot(compartmentsReported %in% 1:2) # NOTE: this is defensive programming; I've only implemented these cases.
+##'
+##' H.matrix <-
+##'   linearInterpolationOperator(
+##'     layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                   susceptibleSpatRaster,
+##'                                   aggregationFactor = 35),
+##'     healthZoneCoordinates = healthZonesCongo,
+##'     neighbourhood.order = 1
+##'   )
+##' plot(as.array(H.matrix[1, ]))
+##'
+##' linearInterpolationOperator(
+##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                 susceptibleSpatRaster,
+##'                                 aggregationFactor = 35),
+##'   healthZoneCoordinates = healthZonesCongo,
+##'   neighbourhood.order = 2
+##' )
+linearInterpolationOperator <-
+  function(layers,
+           healthZoneCoordinates,
+           neighbourhood.order = 0,
+           compartmentsReported = 1) {
+    stopifnot(neighbourhood.order %in% c(0, 1, 2))
+    ## TODO: add an argument to select one cell (no neighbourhood, a Moore
+    ## neighbourhood, or a 2nd-order Chess Queen's neighbourhood). A second order
+    ## neighbour can't be calculated with the current algorithm if the number of
+    ## columns is less than five.
+    if (neighbourhood.order == 2) stopifnot(ncol(layers) >= 5)
+    stopifnot(compartmentsReported %in% 1:2) # NOTE: this is defensive programming; I've only implemented these cases.
 
-  queensNeighbours <- function(order, cell, ncols) {
-    stopifnot(order %in% 1:2)
+    queensNeighbours <- function(order, cell, ncols) {
+      stopifnot(order %in% 1:2)
 
-    if (order == 1) {
-      neighbouringCells <-
-        c((cell - ncols - 1) : (cell - ncols + 1),
-          cell - 1 , cell + 1,
-          (cell + ncols - 1) : (cell + ncols + 1))
-      stopifnot(length(neighbouringCells) == 8)
-    } else if (order == 2) {
-      neighbouringCells <-
-        c((cell - ncols * 2 - 2) : (cell - ncols * 2 + 2),
-          cell - ncols - 2 , cell - ncols + 2,
-          cell - 2 , cell + 2,
-          cell + ncols - 2 , cell + ncols + 2,
-          (cell + ncols * 2 - 2) : (cell + ncols * 2 + 2))
-      stopifnot(length(neighbouringCells) == 16)
+      if (order == 1) {
+        neighbouringCells <-
+          c((cell - ncols - 1) : (cell - ncols + 1),
+            cell - 1 , cell + 1,
+            (cell + ncols - 1) : (cell + ncols + 1))
+        stopifnot(length(neighbouringCells) == 8)
+      } else if (order == 2) {
+        neighbouringCells <-
+          c((cell - ncols * 2 - 2) : (cell - ncols * 2 + 2),
+            cell - ncols - 2 , cell - ncols + 2,
+            cell - 2 , cell + 2,
+            cell + ncols - 2 , cell + ncols + 2,
+            (cell + ncols * 2 - 2) : (cell + ncols * 2 + 2))
+        stopifnot(length(neighbouringCells) == 16)
+      }
+
+      neighbouringCells
     }
 
-    neighbouringCells
+    extend.length <- 5
+    layers <- terra::extend(layers, extend.length)
+
+    ## NOTE: cells contains the index into the rasters in layers (when converted
+    ## to a matrix). MAYBE FIXME: The coordinates are re-ordered as
+    ## longitude-latitude, rather than latitude-longitude as they are otherwise
+    ## stored; the reason is due to the generation of NAs in the resulting matrix,
+    ## otherwise, according to the previous implementation.
+    cells <- terra::cellFromXY(layers, terra::as.matrix(healthZoneCoordinates[, 3:2]))
+    if (anyDuplicated(cells) > 0)
+      warning("Raster aggregation factor is too high to differentiate between two (or more) health zones (they correspond to the same grid cell).")
+    if (any(is.na(cells)))
+      warning("Ignoring NAs in [cells] object corresponding to coordinates out of bounds of [layers] raster.")
+
+    cells <- cells[!is.na(cells)]
+
+    ## NOTE: preallocate the linear forward interpolation matrix, with
+    ## dimensions q * p (health zones by cells in the SpatRaster).
+    H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
+
+    ## NOTE: these are the weightings used for the chess queen zeroth, first,
+    ## and second order neighbors. The zeroth order neighbor is the position of
+    ## the queen itself.
+    neighbour.weights <-
+      switch(neighbourhood.order + 1, # the first of ... applies to zero, etc.
+             1,
+             c(2, 1) * 0.1,
+             c(3, 2, 1) * 35^-1)
+
+    for (index in seq_along(cells)) {
+      H.extended[index, cells[index]] <- neighbour.weights[1]
+
+      if (neighbourhood.order != 0) {
+        neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
+        H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
+      }
+
+      if (neighbourhood.order == 2) {
+        neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
+        if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
+          simpleError("Duplicate cell indices among neighbours of multiple localities.")
+        H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
+      }
+    }
+
+    stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
+    stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
+                                     ncol = ncol(layers),
+                                     byrow = TRUE)),
+                          1))
+
+    if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended)
+
+    ## NOTE: the extended areas of the matrix are now dropped to return the matrix
+    ## to the expected size for the input.
+    interpolationOperatorMatrix <-
+      apply(X = H.extended,
+            MARGIN = 1, # apply the function to rows
+            FUN =
+              function(row) {
+                m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
+                m[(extend.length + 1):(terra::nrow(m) - extend.length),
+                (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
+                  Matrix::t() %>% # row-major order (byrow)
+                  as.vector()
+              }) %>% Matrix::t() # rows should be health zones
+
+    return(interpolationOperatorMatrix)
   }
-
-  extend.length <- 5
-  layers <- terra::extend(layers, extend.length)
-
-  ## NOTE: cells contains the index into the rasters in layers (when converted
-  ## to a matrix). MAYBE FIXME: The coordinates are re-ordered as
-  ## longitude-latitude, rather than latitude-longitude as they are otherwise
-  ## stored; the reason is due to the generation of NAs in the resulting matrix,
-  ## otherwise, according to the previous implementation.
-  cells <- terra::cellFromXY(layers, terra::as.matrix(healthZoneCoordinates[, 3:2]))
-  if (anyDuplicated(cells) > 0)
-    warning("Duplicate cell indices in cells vector derived from health zone coordinates.")
-  if (any(is.na(cells)))
-    warning("Ignoring NAs in [cells] object corresponding to coordinates out of bounds of [layers] raster.")
-
-  cells <- cells[!is.na(cells)]
-
-  ## NOTE: preallocate the linear forward interpolation matrix, with dimensions
-  ## q * p, where p is the number of cells in the SpatRaster layers (nrow *
-  ## ncols), and q is the number of health zones; i.e., the dimensions of the
-  ## matrix are n health zones * m cells in the SpatRaster.
-  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
-
-  ## NOTE: these are the weightings used for the chess queen zeroth, first,
-  ## and second order neighbors. The zeroth order neighbor is the position of
-  ## the queen itself. See
-  ## https://www.paulamoraga.com/book-spatial/spatial-neighborhood-matrices.html#neighbors-of-order-k-based-on-contiguity
-  ## for more information. The index into the vector is one more than the order
-  ## of the neighourhood the value at that index the value applies to.
-  ## neighbour.weights <- c(12e-2, 8e-2, 4e-2) * 5 / 7 # FIXME: what is 5/7?
-  ## Why? Magic numbers are bad!
-
-  ## There are twenty-five cells in this neighbourhood; the innermost cell has
-  ## three parts, the inner ring have two, and the outer ring have one, so there
-  ## are thirty-five parts total to weight the cells.
-  neighbour.weights <- c(3, 2, 1) * 35^-1
-  ## NOTE: the following verifies the weights.
-  ## sum(neighbour.weights[1], rep(neighbour.weights[2], 8), rep(neighbour.weights[3], 25 - 8 - 1))
-
-  ## NOTE: seq_along(cells) produces a vector of indices, 1, 2, 3, ..., n, where
-  ## n is the length of the number of cells. There is one cell for each health
-  ## zone, so the index corresponds to the nth health zone and is used as the
-  ## index for that cell in the cells vector.
-  for (index in seq_along(cells)) {
-    neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
-    neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
-    if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
-      simpleError("Duplicate cell indices among neighbours of multiple localities.")
-    H.extended[index, cells[index]] <- neighbour.weights[1]
-    H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
-    H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
-  }
-
-  warning(sprintf("sum(H): %s (the linear interpolation operator matrix)", sum(H.extended)))
-  stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
-  stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
-                                   ncol = ncol(layers),
-                                   byrow = TRUE)),
-                        1))
-
-  if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended)
-
-  ## NOTE: the extended areas of the matrix are now dropped to return the matrix
-  ## to the expected size for the input.
-  interpolationOperatorMatrix <-
-    apply(X = H.extended,
-          MARGIN = 1, # apply the function to rows
-          FUN =
-            function(row) {
-              m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-              m[(extend.length + 1):(terra::nrow(m) - extend.length),
-              (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
-                Matrix::t() %>% # row-major order (byrow)
-                as.vector()
-            }) %>% Matrix::t() # rows should be health zones
-
-  return(interpolationOperatorMatrix)
-}
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
 ##' @details TODO: write the details about the implementation of this function.
@@ -727,7 +756,9 @@ Valid function names are:
 ##'   function.
 ##' @param startDate The date (in YYYY-MM-DD format) the simulation begins.
 ##' @param countryCodeISO3C The ISO three character code for a recognized country.
-##' @param rasterAgg The number of adjacent cells in any one direction to
+##' @param lambda the average dialy movement distance of an individual (in
+##'   kilometers).
+##' @param aggregationFactor The number of adjacent cells in any one direction to
 ##'   aggregate into a single cell. The aggregation factor must be the same as
 ##'   that used to generate the SpatRaster for layers.
 ##' @param alpha The rate of vaccination (per day)
@@ -735,27 +766,14 @@ Valid function names are:
 ##' @param gamma The rate of becoming infectious (per day)
 ##' @param sigma The rate of recovery (per day)
 ##' @param delta The fatality rate (per day)
-##' @param seedRadius The distance, in kilometers, a given individual travels from
-##'   their starting point (on average, per day).
-##' @param lambda The probability that an individual will move the distance
-##'   governed by radius.
 ##' @param n.days The number of days the simulation will run for, beginning from
 ##'   the startDate.
-##' @param seedData a dataframe like the following example; the compartment
-##'   columns are the initial values.
-##'
-##' \preformatted{
-##'   Location Latitude Longitude Vaccinated Exposed Infected Recovered Dead
-##'   Beni     0.49113  29.47306  0          24      12       0         4
-##'   Butembo  0.140692 29.335014 0          0       0        0         0
-##'   Mabalako 0.461257 29.210687 0          0       0        0         0
-##'   Mandima  1.35551  29.08173  0          0       0        0         0
-##' }
-##' @param seedRadius The number of cells over which to average the seed data in
-##'   a Moore neighbourhood for each locality.
+##' @param seedRadius the distance (in kilometers) over which to disperse the
+##'   initial state variable data from `seedData`.
+##' @param seedData a dataframe, as described in [initialInfections.fourCities].
 ##' @param simulationIsDeterministic Whether stochasticity is enabled or not; if
 ##'   the simulation is deterministic then no stochastic processes are used and
-##'   the simulation is entirely deterministic.
+##'   the simulation is entirely deterministic. Either `TRUE` or `FALSE`.
 ##' @param dataAssimilationEnabled Whether Bayesian data assimilation will be
 ##'   used for state reporting data.
 ##' @param healthZoneCoordinates The coordinates of health zones in the country
@@ -869,7 +887,7 @@ Valid function names are:
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
 ##'                                 aggregationFactor = 35),
-##'   rasterAgg = 35,
+##'   aggregationFactor = 35,
 ##'   startDate = "2018-08-05",
 ##'   countryCodeISO3C = "COD",
 ##'   incidenceData = Congo.EbolaIncidence,
@@ -900,7 +918,7 @@ SVEIRD.BayesianDataAssimilation <-
            seedRadius = 0,  ## these three arguments influence the progression of infection
            lambda,          ## these three arguments influence the progression of infection
            layers,
-           rasterAgg,
+           aggregationFactor,
            startDate,
            countryCodeISO3C,
            incidenceData = NULL,
@@ -972,7 +990,7 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
                                       Q.backgroundErrorStandardDeviation,
                                       Q.characteristicCorrelationLength,
                                       neighbourhood)
-      H <- linearInterpolationOperator <- matrices.Bayes$H
+      H <- linearInterpolationMatrix <- matrices.Bayes$H
       HQHt <- matrices.Bayes$HQHt
       QHt <- matrices.Bayes$QHt
     }
@@ -1030,12 +1048,9 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
       proportionSusceptible <-
         terra::subst(layers$Susceptible / numberLiving, NaN, 0)
 
-      ## Also known by the symbol Ĩ
+      ## NOTE: also known by the symbol Ĩ
       transmissionLikelihoods <-
-        transmissionLikelihoodWeightings(layers$Infected,
-                                         seedRadius,
-                                         lambda,
-                                         rasterAgg)
+        transmissionLikelihoodWeightings(layers$Infected, lambda, aggregationFactor)
 
       growth <- matrix(as.vector(beta * proportionSusceptible)
                        * as.vector(transmissionLikelihoods),
@@ -1080,11 +1095,11 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
       ## be made, and whenever these align assimilation could occur.
       shouldAssimilateData <- all(dataAssimilationEnabled,
                                   today %% 7 == 0,
-                                  datarow < nrow(incidenceData))
+                                  datarow <= nrow(incidenceData))
       if (shouldAssimilateData) {
         infectedExposedLayers <- assimilateData(layers,
-                                                linearInterpolationOperator,
-                                                incidenceData[datarow, ],
+                                                linearInterpolationMatrix,
+                                                incidenceData[datarow, -c(1, 2)],
                                                 healthZoneCoordinates,
                                                 psi.diagonal,
                                                 QHt,
@@ -1252,60 +1267,48 @@ assimilateData <-
            psi.diagonal,
            QHt,
            HQHt) {
-    ## NOTE: Optimal statistical inference: forecast state. NOTE: We track
-    ## the compartments representing the states of being infectious or dead.
-    Infected.prior <- terra::as.matrix(layers$Infected, wide = TRUE)
-
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-    ## TODO: this needs a more descriptive name; what is RAT? I forget already.
+    ## TODO: Ashok is asking Thomas White about the meaning of "rat" in this
+    ## context; he is checking with Thomas why 1e-9 was chosen as well.
     rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
-    ## NOTE: see "Conjecture (I)" in "Notes about covariance matrices" in
-    ## the Google Drive folder for information on the motivation for
-    ## transposing the matrix twice.
-    Xf.OSI <- Infected %>%
-      Matrix::t() %>%
-      as.vector() %>%
-      Matrix::t() %>%
-      Matrix::t()
+    Prior <- matrix(Matrix::t(Infected), ncol = 1)
 
-    HXf <- linearInterpolationMatrix %*% Xf.OSI
+    HForecast <- linearInterpolationMatrix %*% Prior
 
-    ## Pick a row every 7 n.days. NOTE: select third column through to the
-    ## last column by adding two the sequence. NOTE: create the measurement
-    ## error covariance matrix.
-    D.v <- as.vector(incidenceData[, 1:nrow(healthZoneCoordinates) + 2])
-    D.v[D.v < 1] <- psi.diagonal
+    ## Create the measurement error covariance matrix.
+    Innovation <- as.numeric(incidenceData) - HForecast
 
-    ## NOTE: The gain matrix, Ke.OSI, determines how the observational data
-    ## are assimilated.
-    Ke.OSI <- QHt %*% Matrix::solve(HQHt + diag(D.v)) # MAYBE FIXME: is the point to just add psi.diagonal?
+    Psi <- as.numeric(incidenceData)
+    Psi[Psi < 1] <- psi.diagonal
+    Psi <- diag(Psi)
 
-    ## THEM NOTE: Optimal statistical inference update step: analysis state.
-    Xa.OSI <- Xf.OSI + Ke.OSI %*% (as.numeric(D.v) - HXf)
-    Xa.OSI[Xa.OSI < 0] <- 0
+    ## NOTE: The gain matrix, the Kalman filter, determines how the
+    ## observational data are assimilated.
+    KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi)
+    Posterior <- Prior + KalmanFilter %*% Innovation
+    Posterior[Posterior < 0] <- 0
 
-    ## MAYBE TODO: is subsetting even necessary? Is Xa.OSI larger than
+    ## MAYBE TODO: is subsetting even necessary? Is Posterior larger than
     ## "seq(terra::nrow(layers) * terra::ncol(layers))", requiring us to
     ## subset it so that I is not too large? NOTE: when RESTACKING make sure
     ## byrow = TRUE. NOTE: what is restacking? Why did I choose this word
     ## when I wrote the first part of this comment a week ago? NOTE: take
-    ## the subset of Xa.OSI which is the same size as `layers`? Using single
+    ## the subset of Posterior which is the same size as `layers`? Using single
     ## element subsetting assumes row-major ordering.
-    I <- matrix(Xa.OSI[seq(terra::nrow(layers) * terra::ncol(layers))],
+    I <- matrix(Posterior[seq(terra::nrow(layers) * terra::ncol(layers))],
                 nrow = terra::nrow(layers),
                 ncol = terra::ncol(layers),
                 byrow = TRUE)
 
-    ## NOTE: if an area is uninhabitable replace its value with zero; it
-    ## makes more sense to instead use NA values to prevent calculating
-    ## values for uninhabitable areas. MAYBE TODO: a raster with
-    ## uninhabitable areas which can mask the susceptible and any other
-    ## layer with NAs would be better than this.
+    ## NOTE: if an area is uninhabitable replace its value with zero; it makes
+    ## more sense to instead use NA values to prevent calculating values for
+    ## uninhabitable areas.
     infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
-                                   layers$Inhabited,
-                                   maskvalues = 0,
-                                   updatevalue = 0)
+                              layers$Inhabited,
+                              maskvalues = 0,
+                              updatevalue = 0)
+
     ## MAYBE FIXME: how, exaclty, does the number of compartments reported
     ## impact the assimilation of the data? What is the influence of the
     ## number of compartments reported on the overriding of Infected and

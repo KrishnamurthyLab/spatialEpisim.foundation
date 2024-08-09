@@ -4,18 +4,18 @@
 \alias{transmissionLikelihoodWeightings}
 \title{Weighted Sums}
 \usage{
-transmissionLikelihoodWeightings(infections, radius, lambda, aggregationFactor)
+transmissionLikelihoodWeightings(infections, lambda, aggregationFactor)
 }
 \arguments{
 \item{infections}{a matrix of the count of infections per aggregate area in
 a raster of terrestrial data.}
 
-\item{radius}{a constant; see details.}
+\item{lambda}{the average dialy movement distance of an individual (in
+kilometers).}
 
-\item{lambda}{movemenet distance (in kilometers) per day; see details.}
-
-\item{aggregationFactor}{the degree of aggregation applied to the raster
-data mentioned in the function details.}
+\item{aggregationFactor}{The number of adjacent cells in any one direction to
+aggregate into a single cell. The aggregation factor must be the same as
+that used to generate the SpatRaster for layers.}
 }
 \value{
 a matrix of weightings for the calculation of the proportionOfSusceptible of
@@ -52,7 +52,7 @@ susceptibleSpatRaster <- rast(
 layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                susceptibleSpatRaster,
                                aggregationFactor = 35)
-transmissionLikelihoodWeightings(layers$Infected, 1, 15, 35)
+transmissionLikelihoodWeightings(layers$Infected, 15, 35)
 }
 \author{
 Bryce Carson

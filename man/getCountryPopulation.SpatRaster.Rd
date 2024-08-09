@@ -13,7 +13,7 @@ country.}
 \item{folder}{Passed on to method downloadWorldPopData}
 }
 \value{
-A RasterLayer of WorldPop population count data with the name
+A SpatRaster of WorldPop population count data with the name
 Susceptible, with all NAs replaced by zeros.
 }
 \description{

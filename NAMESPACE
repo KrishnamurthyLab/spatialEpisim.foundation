@@ -2,7 +2,7 @@
 
 export(Q.forecastErrorCov)
 export(SVEIRD.BayesianDataAssimilation)
-export(avgEuclideanDistance)
+export(averageEuclideanDistance)
 export(castSeedDataMooreNeighbourhood)
 export(downloadWorldPopData)
 export(getCountryPopulation.SpatRaster)

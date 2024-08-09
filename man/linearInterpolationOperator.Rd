@@ -8,6 +8,7 @@ vectors}
 linearInterpolationOperator(
   layers,
   healthZoneCoordinates,
+  neighbourhood.order = 0,
   compartmentsReported = 1
 )
 }
@@ -101,6 +102,24 @@ linearInterpolationOperator(
                                 susceptibleSpatRaster,
                                 aggregationFactor = 35),
   healthZoneCoordinates = healthZonesCongo
+)
+
+H.matrix <-
+  linearInterpolationOperator(
+    layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+                                  susceptibleSpatRaster,
+                                  aggregationFactor = 35),
+    healthZoneCoordinates = healthZonesCongo,
+    neighbourhood.order = 1
+  )
+plot(as.array(H.matrix[1, ]))
+
+linearInterpolationOperator(
+  layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+                                susceptibleSpatRaster,
+                                aggregationFactor = 35),
+  healthZoneCoordinates = healthZonesCongo,
+  neighbourhood.order = 2
 )
 }
 \author{

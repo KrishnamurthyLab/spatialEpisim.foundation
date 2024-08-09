@@ -7,12 +7,12 @@
 .onLoad(libname, pkgname)
 }
 \arguments{
-\item{libname}{The name of the library loaded}
+\item{libname}{The name of the library in which the package is stored.}
 
-\item{pkgname}{The name of the package loaded}
+\item{pkgname}{The name of the loaded package.}
 }
 \description{
-Set the options for this package, primarily set path
+Set the options for this package; primarily set path
 \code{spatialEpisim.foundation.datapath} used for storing data used by this
 package which is downloaded from the Web.
 }

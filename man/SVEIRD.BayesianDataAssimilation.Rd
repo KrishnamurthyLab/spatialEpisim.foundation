@@ -15,7 +15,7 @@ SVEIRD.BayesianDataAssimilation(
   seedRadius = 0,
   lambda,
   layers,
-  rasterAgg,
+  aggregationFactor,
   startDate,
   countryCodeISO3C,
   incidenceData = NULL,
@@ -45,28 +45,19 @@ SVEIRD.BayesianDataAssimilation(
 \item{n.days}{The number of days the simulation will run for, beginning from
 the startDate.}
 
-\item{seedData}{a dataframe like the following example; the compartment
-columns are the initial values.
+\item{seedData}{a dataframe, as described in \link{initialInfections.fourCities}.}
 
-\preformatted{
-  Location Latitude Longitude Vaccinated Exposed Infected Recovered Dead
-  Beni     0.49113  29.47306  0          24      12       0         4
-  Butembo  0.140692 29.335014 0          0       0        0         0
-  Mabalako 0.461257 29.210687 0          0       0        0         0
-  Mandima  1.35551  29.08173  0          0       0        0         0
-}}
+\item{seedRadius}{the distance (in kilometers) over which to disperse the
+initial state variable data from \code{seedData}.}
 
-\item{seedRadius}{The number of cells over which to average the seed data in
-a Moore neighbourhood for each locality.}
-
-\item{lambda}{The probability that an individual will move the distance
-governed by radius.}
+\item{lambda}{the average dialy movement distance of an individual (in
+kilometers).}
 
 \item{layers}{The SpatRaster object with SVEIRD compartment layers, and a
 layer classifying habitation. Created with the getSVEIRD.SpatRaster
 function.}
 
-\item{rasterAgg}{The number of adjacent cells in any one direction to
+\item{aggregationFactor}{The number of adjacent cells in any one direction to
 aggregate into a single cell. The aggregation factor must be the same as
 that used to generate the SpatRaster for layers.}
 
@@ -79,17 +70,31 @@ provides the date of the officially reported, observed incidence of the
 disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 parameter to be one week prior to the first observed data?
 
-TODO: fix the formatting here. What happened to my beautiful table?
-\preformatted{ Date Beni Butembo Mabalako Mandima 2018-08-05 34 34 34 34
-    2018-08-12 2 0 11 1 2018-08-20 1 0 37 6 2018-08-26 5 0 3 0 2018-08-02 8
-    0 1 1 2018-08-09 5 2 1 1 }}
+\preformatted{
+    Date    Beni  Biena  Butembo  Goma  Kalunguta
+    05-Aug  3     0      2        0     0
+    12-Aug  2     0      0        0     0
+    20-Aug  1     0      0        0     0
+    26-Aug  5     0      0        0     0
+    02-Sep  8     0      0        0     1
+    09-Sep  5     0      2        0     0
+    16-Sep  5     0      3        0     0
+    23-Sep  4     0      1        0     0
+    02-Oct  10    0      1        0     0
+    07-Oct  14    0      4        0     0
+    15-Oct  28    0      2        0     1
+    21-Oct  19    0      3        0     0
+    28-Oct  28    0      8        0     0
+    04-Nov  16    0      6        0     1
+    11-Nov  14    0      0        0     21
+  }}
 
 \item{deathData}{Data of the same format as incidenceData, but observations
 represent deaths, not infections.}
 
 \item{simulationIsDeterministic}{Whether stochasticity is enabled or not; if
 the simulation is deterministic then no stochastic processes are used and
-the simulation is entirely deterministic.}
+the simulation is entirely deterministic. Either \code{TRUE} or \code{FALSE}.}
 
 \item{dataAssimilationEnabled}{Whether Bayesian data assimilation will be
 used for state reporting data.}
@@ -193,7 +198,7 @@ SVEIRD.BayesianDataAssimilation(
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
                                 aggregationFactor = 35),
-  rasterAgg = 35,
+  aggregationFactor = 35,
   startDate = "2018-08-05",
   countryCodeISO3C = "COD",
   incidenceData = Congo.EbolaIncidence,

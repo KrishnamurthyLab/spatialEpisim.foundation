@@ -30,10 +30,24 @@ provides the date of the officially reported, observed incidence of the
 disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 parameter to be one week prior to the first observed data?
 
-TODO: fix the formatting here. What happened to my beautiful table?
-\preformatted{ Date Beni Butembo Mabalako Mandima 2018-08-05 34 34 34 34
-    2018-08-12 2 0 11 1 2018-08-20 1 0 37 6 2018-08-26 5 0 3 0 2018-08-02 8
-    0 1 1 2018-08-09 5 2 1 1 }}
+\preformatted{
+    Date    Beni  Biena  Butembo  Goma  Kalunguta
+    05-Aug  3     0      2        0     0
+    12-Aug  2     0      0        0     0
+    20-Aug  1     0      0        0     0
+    26-Aug  5     0      0        0     0
+    02-Sep  8     0      0        0     1
+    09-Sep  5     0      2        0     0
+    16-Sep  5     0      3        0     0
+    23-Sep  4     0      1        0     0
+    02-Oct  10    0      1        0     0
+    07-Oct  14    0      4        0     0
+    15-Oct  28    0      2        0     1
+    21-Oct  19    0      3        0     0
+    28-Oct  28    0      8        0     0
+    04-Nov  16    0      6        0     1
+    11-Nov  14    0      0        0     21
+  }}
 
 \item{healthZoneCoordinates}{a table of values giving the latitude and
 longitude coordinates for health zones in the country of interest. See the
