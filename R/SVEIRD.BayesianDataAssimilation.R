@@ -912,7 +912,7 @@ Valid function names are:
 ##'   psi.diagonal = 1e-3
 ##' )
 SVEIRD.BayesianDataAssimilation <-
-  function(## Parameters influencing differential equations # TODO: verify the description of these parameters, i.e., do none of the other parameters influence the differential equations?
+  function(## Parameters influencing differential equations
            alpha,
            beta,
            gamma,
@@ -950,7 +950,7 @@ SVEIRD.BayesianDataAssimilation <-
     ## MAYBE: is missing a better option? NULL defaults influence the decision...
     compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
 
-    ## Preallocate a zeroed data frame with the following column names, and
+    ## NOTE: Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summaryTable".
     names <- c(## Population and epidemic compartments (states)
                "N", "S", "V", "E", "I", "R", "D",
@@ -964,32 +964,7 @@ SVEIRD.BayesianDataAssimilation <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
 
-    ## NOTE: cast the seed data from the initial infections equitably, in a
-    ## Moore Neighborhood of cells.
-    seededLayers <- castSeedDataQueensNeighbourhood(seedData, neighbourhood.order, layers)
-
-    adjustedSusceptible <- layers$Susceptible -
-      seededLayers$Vaccinated -
-      seededLayers$Exposed -
-      seededLayers$Infected -
-      seededLayers$Recovered -
-      seededLayers$Dead
-
-    layers$Vaccinated <- seededLayers$Vaccinated
-    layers$Exposed <- seededLayers$Exposed
-    layers$Infected <- seededLayers$Infected
-    layers$Recovered <- seededLayers$Recovered
-    layers$Dead <- seededLayers$Dead
-
-    message(sprintf(r"{Adjusting the susceptible layer to account for seeded epidemic compartments...
-Susceptible before seeding = %s
-Susceptible after seeding = %s
-}",
-terra::global(layers$Susceptible, sum, na.rm = TRUE),
-terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
-    stopifnot(adjustedSusceptible > 1)
-
-    layers$Susceptible <- adjustedSusceptible
+    layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
 
     if (dataAssimilationEnabled) {
       matrices.Bayes <-
@@ -1006,22 +981,28 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
     }
 
     ## NOTE: preallocate the list which will hold a timeseries of SpatRaster
-    ## objects.
+    ## objects. MAYBE TODO: there are other ways to work with time series data;
+    ## within the terra documentation, time series data is usually stored as a
+    ## SpatRaster with multiple layers for a single variable, with each layer of
+    ## the SpatRaster representing a different timestep. Search for "timestep"
+    ## in the terra documentation.
     layers.timeseries <- vector(mode = "list", length = n.days)
 
     ## TODO: absolutely do not use this "datarow". There's a much better way.
     ## NOTE: datarow is a sentinel value used to prevent trying to assimilate
-    ## more data than exists in the observed data dataframe. Seventy-six is a
-    ## magic number, which is actually the number of rows of observed data plus
-    ## one (for one-based indexing). The rows are weekly data; it may be easier
-    ## to simply check if there is more data to assimilate, and whenever the
-    ## simulation date is one day before or the same day as the observed data it
-    ## is then assimilated. Using a sentinel value for the row from which we
-    ## read the data to assimilate each week is unnecessary, though easy.
+    ## more data than exists in the observed data dataframe. The rows are weekly
+    ## data; it may be easier to simply check if there is more data to
+    ## assimilate, and whenever the simulation date is one day before the the
+    ## observed data date, or the same day, then it is assimilated. Using a
+    ## sentinel value for the row from which we read the data to assimilate each
+    ## week is simplistic, but may actually be more efficient than other
+    ## approaches.
     datarow <- 1
 
-    reclassifyNegatives <-
-      function(spit) terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
+    ## Spit is a "play on words" in SpatRaster
+    reclassifyNegatives <- function(spit) {
+      terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
+    }
 
     ## TODO: all of the calcualtions within this loop should be spatial
     ## calcualtions on the SpatRasters, and no conversion to vector or matrix
@@ -1035,6 +1016,7 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
       ## using. The arguments should be provided as a list.
       callback() # Run the callback function, or NULL expression.
 
+      ## FIXME: this seems totally wrong, given the next step! Why did I do it this way?
       compartments <- terra::subset(layers, "Inhabited", negate = TRUE)
       compartments$Dead %<>% "*"(-1)
       compartments %<>% terra::global(sum, na.rm = TRUE)
@@ -1051,21 +1033,19 @@ terra::global(adjustedSusceptible, sum, na.rm = TRUE)))
       ## The population is the sum of the susceptible, vaccinated, exposed,
       ## infected, and recovered compartments.
       numberLiving <- sum(terra::subset(layers, c("Dead", "Inhabited"), negate = TRUE))
+
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
-      ## Some susceptible people who come in contact with nearby infected are
-      ## going to be newly exposed. Also known by the symbols βN⁻¹.
-      proportionSusceptible <-
-        terra::subst(layers$Susceptible / numberLiving, NaN, 0)
+      ## MAYBE FIXME: substituting NaNs may produce an plane, whereas we want
+      ## NaN where there is no spatial data, really; it'll make the plot of the
+      ## raster still appear like a geographic entity, rather than a plane.
+      proportionSusceptible <- terra::subst(layers$Susceptible / numberLiving, NaN, 0)
 
-      ## NOTE: also known by the symbol Ĩ
-      transmissionLikelihoods <-
-        transmissionLikelihoodWeightings(layers$Infected, lambda, aggregationFactor)
+      transmissionLikelihoods <- transmissionLikelihoodWeightings(layers$Infected, lambda, aggregationFactor)
 
-      growth <- matrix(as.vector(beta * proportionSusceptible)
-                       * as.vector(transmissionLikelihoods),
-                       nrow = 20,
-                       ncol = 14,
+      growth <- matrix(as.vector(beta * proportionSusceptible) * as.vector(transmissionLikelihoods),
+                       nrow = nrow(layers), # MAYBE FIXME: is this the right object to use to get the nrow from?
+                       ncol = ncol(layers), # MAYBE FIXME: is this the right object to use to get the ncol from?
                        byrow = TRUE)
 
       ## TODO: stochasticity is not properly implemented yet; it was not fully
@@ -1387,44 +1367,58 @@ assimilateData <-
 ##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 0, layers))
 ##' castSeedDataQueensNeighbourhood(initialInfections.fourCities, 1, layers)
 ##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 3, layers))
-castSeedDataQueensNeighbourhood <- function(seedData, neighbourhood.order, layers) {
-  stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order), ceiling(neighbourhood.order)))
+castSeedDataQueensNeighbourhood <-
+  function(layers, seedData, neighbourhood.order) {
+    stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order),
+                                           ceiling(neighbourhood.order)))
+    message(sprintf("Susceptible before seeding = %s",
+                    terra::global(layers$Susceptible, sum, na.rm = TRUE)))
 
-  ## NOTE: evenly spread the count of exposed and infected persons across a
-  ## Chess Queen's neighbourhood of a given order; this value is assigned to
-  ## each cell of a neighbourhood of the same order in the SpatRaster, centered
-  ## about the proper SpatRaster cell.
-  neighbourhoodQuotient <- function(x) x / (2 * neighbourhood.order + 1)^2
-  seedData.equitable <-
-    dplyr::group_by(seedData, Location) %>%
-    dplyr::summarize(dplyr::across(c("InitialExposed", "InitialInfections"),
-                                   neighbourhoodQuotient)) %>%
-    dplyr::right_join(seedData, by = dplyr::join_by(Location))
+    ## NOTE: evenly spread the count of exposed and infected persons across a
+    ## Chess Queen's neighbourhood of a given order; this value is assigned to
+    ## each cell of a neighbourhood of the same order in the SpatRaster, centered
+    ## about the proper SpatRaster cell.
+    neighbourhoodQuotient <- function(x) x / (2 * neighbourhood.order + 1)^2
+    seedData.equitable <-
+      dplyr::group_by(seedData, Location) %>%
+      dplyr::summarize(dplyr::across(c("InitialExposed", "InitialInfections"),
+                                     neighbourhoodQuotient)) %>%
+      dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
-  for (seedingLocation in seedData.equitable$Location) {
-    ## Get row and column numbers from the latitude and longitude for this
-    ## health region.
-    data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
-    row <- terra::rowFromY(layers, data$lat)
-    col <- terra::colFromX(layers, data$lon)
+    for (seedingLocation in seedData.equitable$Location) {
+      ## Get row and column numbers from the latitude and longitude for this
+      ## health region.
+      data <- dplyr::filter(seedData.equitable, Location == seedingLocation)
+      row <- terra::rowFromY(layers, data$lat)
+      col <- terra::colFromX(layers, data$lon)
 
-    if (!any(is.na(c(row, col)))) {
-      rowRange <- seq(from = row - neighbourhood.order, to = row + neighbourhood.order)
-      columnRange <- seq(from = col - neighbourhood.order, to = col + neighbourhood.order)
+      if (!any(is.na(c(row, col)))) {
+        rowRange <- seq(from = row - neighbourhood.order,
+                        to = row + neighbourhood.order)
+        columnRange <- seq(from = col - neighbourhood.order,
+                           to = col + neighbourhood.order)
 
-      layers$Vaccinated[row, col]            <- data$InitialVaccinated
-      layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x
-      layers$Infected[rowRange, columnRange] <- data$InitialInfections.x
-      layers$Recovered[row, col]             <- data$InitialRecovered
-      layers$Dead[row, col]                  <- data$InitialDead
+        layers$Vaccinated[row, col]            <- data$InitialVaccinated
+        layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x
+        layers$Infected[rowRange, columnRange] <- data$InitialInfections.x
+        layers$Recovered[row, col]             <- data$InitialRecovered
+        layers$Dead[row, col]                  <- data$InitialDead
+      }
     }
+
+    ## FIXME: this simplistic calculation results in layers$Susceptible having
+    ## negative values, which is totally unrealistic!
+    layers$Susceptible <-
+      lapp(seededLayers,
+           function(Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead) {
+             Susceptible - Vaccinated - Exposed - Infected - Recovered - Dead
+           },
+           usenames = TRUE)
+
+    message(sprintf("Susceptible after seeding = %s",
+                    terra::global(layers$Susceptible, sum, na.rm = TRUE)))
+    stopifnot(terra::global(layers$Susceptible, sum, na.rm = TRUE) > 0)
+    stopifnot(terra::global(layers$Susceptible, min, na.rm = TRUE) == 0)
+
+    return(layers)
   }
-
-  ## FIXME: this results in layer$Susceptible having negative values, which is
-  ## totally unrealistic!
-  seeds <- terra::subset(layers, "Susceptible", negate = TRUE) * -1
-  seededLayers <- c(terra::subset(layers, "Susceptible"), seeds)
-  layers$Susceptible <- sum(seededLayers, na.rm = TRUE)
-
-  return(layers)
-}
