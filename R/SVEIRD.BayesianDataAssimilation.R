@@ -302,7 +302,7 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
   terra::values(Inhabited)[terra::values(Inhabited) < 1] <- 0
 
   ## NOTE: It is faster to use fun = NA, rather than fun = 0, because
-  ## castSeedDataMooreNeighbourhood, for example, will not perform calculations,
+  ## castSeedDataQueensNeighbourhood, for example, will not perform calculations,
   ## rather than multiple many cells by zero to no effect; it also produces
   ## clearer plots without values outside the bounds of the borders of the
   ## spatial region of the geographical region represented in the raster.
@@ -966,7 +966,7 @@ SVEIRD.BayesianDataAssimilation <-
 
     ## NOTE: cast the seed data from the initial infections equitably, in a
     ## Moore Neighborhood of cells.
-    seededLayers <- castSeedDataMooreNeighbourhood(seedData, neighbourhood.order, layers)
+    seededLayers <- castSeedDataQueensNeighbourhood(seedData, neighbourhood.order, layers)
 
     adjustedSusceptible <- layers$Susceptible -
       seededLayers$Vaccinated -
@@ -1384,10 +1384,10 @@ assimilateData <-
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 35)
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
-##' plot(castSeedDataMooreNeighbourhood(initialInfections.fourCities, 0, layers))
-##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 1, layers)
-##' plot(castSeedDataMooreNeighbourhood(initialInfections.fourCities, 3, layers))
-castSeedDataMooreNeighbourhood <- function(seedData, neighbourhood.order, layers) {
+##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 0, layers))
+##' castSeedDataQueensNeighbourhood(initialInfections.fourCities, 1, layers)
+##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 3, layers))
+castSeedDataQueensNeighbourhood <- function(seedData, neighbourhood.order, layers) {
   stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order), ceiling(neighbourhood.order)))
 
   seedData.equitable <-
