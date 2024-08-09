@@ -369,7 +369,7 @@ averageEuclideanDistance <-
       else
         lambda + aggregationFactor
 
-    if (!radius %in% c(1, 2)) warning(sprintf("Radius not one or two; using %s", radius <- 1))
+    stopifnot(radius %in% seq(floor(radius), ceiling(radius)))
 
     avg.euc.dist <- function(i, j) {
       exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
@@ -768,8 +768,13 @@ Valid function names are:
 ##' @param delta The fatality rate (per day)
 ##' @param n.days The number of days the simulation will run for, beginning from
 ##'   the startDate.
-##' @param seedRadius the distance (in kilometers) over which to disperse the
-##'   initial state variable data from `seedData`.
+##' @param neighbourhood.order The order of the queen's neighbourhood over which
+##'   to distribute the Exposed and Infected intial state variable; zero is no
+##'   neighbourhood, and corresponds to only the same cell where the queen
+##'   already is. Higher orders follow the simple formula `(2 * x + 1)^2` to
+##'   determine the number of cells over which to evenly disperse the exposed
+##'   and infected state variables. All other state variables are placed
+##'   directly in the grid cell corresponding to the health zone.
 ##' @param seedData a dataframe, as described in [initialInfections.fourCities].
 ##' @param simulationIsDeterministic Whether stochasticity is enabled or not; if
 ##'   the simulation is deterministic then no stochastic processes are used and
@@ -883,7 +888,7 @@ Valid function names are:
 ##'   n.days = 31, # a month, permitting three assimilations of observed data
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
-##'   seedRadius = 1,
+##'   neighbourhood.order = 1,
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
 ##'                                 aggregationFactor = 35),
@@ -915,7 +920,7 @@ SVEIRD.BayesianDataAssimilation <-
 
            ## Model data
            seedData,        ## these three arguments influence the progression of infection
-           seedRadius = 0,  ## these three arguments influence the progression of infection
+           neighbourhood.order = 0,  ## these three arguments influence the progression of infection
            lambda,          ## these three arguments influence the progression of infection
            layers,
            aggregationFactor,
@@ -957,7 +962,7 @@ SVEIRD.BayesianDataAssimilation <-
 
     ## NOTE: cast the seed data from the initial infections equitably, in a
     ## Moore Neighborhood of cells.
-    seededLayers <- castSeedDataMooreNeighbourhood(seedData, seedRadius, layers)
+    seededLayers <- castSeedDataMooreNeighbourhood(seedData, neighbourhood.order, layers)
 
     adjustedSusceptible <- layers$Susceptible -
       seededLayers$Vaccinated -
@@ -1340,8 +1345,13 @@ assimilateData <-
 ##'   Mabalako 0.461257 29.210687 0          0       0        0         0
 ##'   Mandima  1.35551  29.08173  0          0       0        0         0
 ##' }
-##' @param seedRadius The distance, in kilometers, a given individual travels from
-##'   their starting point (on average, per day).
+##' @param neighbourhood.order The order of the queen's neighbourhood over which
+##'   to distribute the Exposed and Infected intial state variable; zero is no
+##'   neighbourhood, and corresponds to only the same cell where the queen
+##'   already is. Higher orders follow the simple formula `(2 * x + 1)^2` to
+##'   determine the number of cells over which to evenly disperse the exposed
+##'   and infected state variables. All other state variables are placed
+##'   directly in the grid cell corresponding to the health zone.
 ##' @param layers The SpatRaster object with layers Susceptible, Vaccinated,
 ##'   Exposed, Infected, Recovered, and Dead.
 ##' @author Bryce Carson
@@ -1369,15 +1379,19 @@ assimilateData <-
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 35)
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
+##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 0, layers)
 ##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 1, layers)
-castSeedDataMooreNeighbourhood <- function(seedData, seedRadius, layers) {
+##' castSeedDataMooreNeighbourhood(initialInfections.fourCities, 3, layers)
+castSeedDataMooreNeighbourhood <- function(seedData, neighbourhood.order, layers) {
+  stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order), ceiling(neighbourhood.order)))
+
   seedData.equitable <-
     dplyr::group_by(seedData, Location) %>%
     dplyr::summarize(dplyr::across(c("InitialExposed", "InitialInfections"),
                                    ## NOTE: the numerator is the exposed and infected
                                    ## compartment; the denominator is a parabolic function
                                    ## of the seedRadius.
-                                   function(x) x / (2 * seedRadius + 1)^2)) %>%
+                                   function(x) x / (2 * neighbourhood.order + 1)^2)) %>%
     dplyr::right_join(seedData, by = dplyr::join_by(Location))
 
   for (seedingLocation in seedData.equitable$Location) {
@@ -1389,14 +1403,9 @@ castSeedDataMooreNeighbourhood <- function(seedData, seedRadius, layers) {
     col <- terra::colFromX(layers, data$lon)
 
     if (!any(is.na(c(row, col)))) {
-      rowRange <- seq(from = row - seedRadius, to = row + seedRadius)
-      columnRange <- seq(from = col - seedRadius, to = col + seedRadius)
+      rowRange <- seq(from = row - neighbourhood.order, to = row + neighbourhood.order)
+      columnRange <- seq(from = col - neighbourhood.order, to = col + neighbourhood.order)
 
-      ## TODO: use an environment rather than the
-      ## ascending/parent-environment(s) recursing assignment operator (<<-) so
-      ## that the global environment isn't modified by accident, and that there
-      ## is always confidence in what is being modified, though this should be
-      ## rather safe.
       layers$Vaccinated[row, col]            <- data$InitialVaccinated
       layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x
       layers$Infected[rowRange, columnRange] <- data$InitialInfections.x
