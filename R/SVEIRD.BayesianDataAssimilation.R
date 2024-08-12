@@ -280,7 +280,7 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
 ##'   )
 ##' )
 ##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster,
-##'                      aggregationFactor = 35)
+##'                      aggregationFactor = 10)
 ##'
 ##' ## Omitting the aggregation factor argument will prevent aggregation. An
 ##' ## aggregation factor of zero or one is meaningless and will produce an
@@ -385,7 +385,7 @@ classify.binary <- function(inputRaster) {
 ##' @author Thomas White
 ##' @examples
 ##' averageEuclideanDistance(lambda = 15) # No raster aggregation
-##' averageEuclideanDistance(lambda = 15, aggregationFactor = 35)
+##' averageEuclideanDistance(lambda = 15, aggregationFactor = 10)
 ##'
 ##' lattice::levelplot(as.array(averageEuclideanDistance(15)))
 ##' lattice::levelplot(as.array(averageEuclideanDistance(100, 35)))
@@ -452,8 +452,8 @@ averageEuclideanDistance <-
 ##' )
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
-##'                                aggregationFactor = 35)
-##' transmissionLikelihoodWeightings(layers$Infected, 15, 35)
+##'                                aggregationFactor = 10)
+##' transmissionLikelihoodWeightings(layers$Infected, 15, 10)
 transmissionLikelihoodWeightings <-
   function(infections, lambda, aggregationFactor) {
     ## FIXME: when lambda < aggregationFactor, radius is calcualted as 1, and
@@ -545,7 +545,7 @@ transmissionLikelihoodWeightings <-
 ##' linearInterpolationOperator(
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
-##'                                 aggregationFactor = 35),
+##'                                 aggregationFactor = 10),
 ##'   healthZoneCoordinates = healthZonesCongo
 ##' )
 ##'
@@ -553,7 +553,7 @@ transmissionLikelihoodWeightings <-
 ##'   linearInterpolationOperator(
 ##'     layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                   susceptibleSpatRaster,
-##'                                   aggregationFactor = 35),
+##'                                   aggregationFactor = 10),
 ##'     healthZoneCoordinates = healthZonesCongo,
 ##'     neighbourhood.order = 1
 ##'   )
@@ -562,7 +562,7 @@ transmissionLikelihoodWeightings <-
 ##' linearInterpolationOperator(
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
-##'                                 aggregationFactor = 35),
+##'                                 aggregationFactor = 10),
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   neighbourhood.order = 2
 ##' )
@@ -709,7 +709,7 @@ linearInterpolationOperator <-
 ##' )
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
-##'                                aggregationFactor = 35)
+##'                                aggregationFactor = 10)
 ##' Ituri.Q.forecastErrorCov <- Q.forecastErrorCov(layers, "DBD", 2, 0.8, 4, 2)
 Q.forecastErrorCov <- function(layers,
                                variableCovarianceFunction,
@@ -911,6 +911,7 @@ Valid function names are:
 ##' data("healthZonesCongo", package = "spatialEpisim.foundation")
 ##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
+##' rasterAggregationFactor = 10
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -918,7 +919,7 @@ Valid function names are:
 ##'   gamma = 1/7,
 ##'   sigma = 1/36,
 ##'   delta = 2/36,
-##'   lambda = 15,
+##'   lambda = 45,
 ##'   ## Model runtime
 ##'   n.days = 31, # a month, permitting three assimilations of observed data
 ##'   ## Model data
@@ -926,8 +927,8 @@ Valid function names are:
 ##'   neighbourhood.order = 1,
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
-##'                                 aggregationFactor = 35),
-##'   aggregationFactor = 35,
+##'                                 aggregationFactor = rasterAggregationFactor),
+##'   aggregationFactor = rasterAggregationFactor,
 ##'   startDate = "2018-08-05",
 ##'   countryCodeISO3C = "COD",
 ##'   incidenceData = Congo.EbolaIncidence,
@@ -940,7 +941,8 @@ Valid function names are:
 ##'   Q.backgroundErrorStandardDeviation = 0.55,
 ##'   Q.characteristicCorrelationLength = 6.75e-1,
 ##'   neighbourhood = 3,
-##'   psi.diagonal = 1e-3
+##'   psi.diagonal = 1e-3,
+##'   callback = cli::cli_progress_update
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters influencing differential equations
@@ -1034,6 +1036,8 @@ SVEIRD.BayesianDataAssimilation <-
     reclassifyNegatives <- function(spit) {
       terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
     }
+
+    cli::cli_progress_bar("Simulating epidemic (SEI-type)", total = n.days)
 
     ## TODO: all of the calcualtions within this loop should be spatial
     ## calcualtions on the SpatRasters, and no conversion to vector or matrix
@@ -1131,6 +1135,8 @@ SVEIRD.BayesianDataAssimilation <-
 
       layers.timeseries[[today]] <- layers
     }
+
+    cli::cli_progress_done()
 
     ## TODO: the entire column can be calculated one time and added to the
     ## summaryTable data at the end of the function.
@@ -1392,7 +1398,7 @@ assimilateData <-
 ##' )
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
-##'                                aggregationFactor = 35)
+##'                                aggregationFactor = 10)
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
 ##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 0, layers))
 ##' castSeedDataQueensNeighbourhood(initialInfections.fourCities, 1, layers)
@@ -1439,11 +1445,11 @@ castSeedDataQueensNeighbourhood <-
     ## FIXME: this simplistic calculation results in layers$Susceptible having
     ## negative values, which is totally unrealistic!
     layers$Susceptible <-
-      lapp(layers,
-           function(Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead) {
-             Susceptible - Vaccinated - Exposed - Infected - Recovered - Dead
-           },
-           usenames = TRUE)
+      terra::lapp(layers,
+                  function(Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead) {
+                    Susceptible - Vaccinated - Exposed - Infected - Recovered - Dead
+                  },
+                  usenames = TRUE)
 
     message(sprintf("Susceptible after seeding = %s",
                     terra::global(layers$Susceptible, sum, na.rm = TRUE)))
