@@ -245,21 +245,18 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
     "levels<-"(levels(.)[[1]])
 }
 
-## FIXME: refactor the return value so that the Inhabited layer doesn't
-## continually need to be ignored through subsetting the layers.
 ##' @title Create a SpatRaster of SVEIRD model compartment raster data
 ##' @description Create a list of SpatRaster objects, one for each component in
 ##'   an SVEIRD epidemic model.
-##' @details The SpatRaster objects for the VEIRD components are empty, while
-##'   the Inhabited SpatRaster is a binary classification on habitation of land
-##'   area.
-##' @param subregions a SpatVector object of subregions used to crop the SVEIRD SpatRaster
+##' @details The SpatRaster objects for the VEIRD components are empty, the
+##'   input SpatRaster is the only layer with non-zero values (if any existed before).
+##' @param subregions a SpatVector object of subregions used to crop the SVEIRD
+##'   SpatRaster
 ##' @param susceptible a RasterLayer, pre-aggregated if that is wished.
 ##' @param aggregationFactor the number of cells in any direction to aggregate
 ##'   together into one, in the susceptible ratser, after masking with the
 ##'   subregions vector, before creating the list
-##' @returns a SpatRaster, with layers for the SVERID components and an
-##'   additional layer classifying the Inhabited status of a cell
+##' @returns a SpatRaster, with layers for the SVERID components
 ##' @author Bryce Carson
 ##' @author Michael Myer
 ##' @author Ashok Krishnmaurthy
@@ -296,25 +293,56 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
     susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = sum)
   }
 
-  terra::values(susceptible)[terra::values(susceptible) < 0] <- 0
-  Inhabited <- susceptible
-  terra::values(Inhabited)[terra::values(Inhabited) > 0] <- 1
-  terra::values(Inhabited)[terra::values(Inhabited) < 1] <- 0
-
   ## NOTE: It is faster to use fun = NA, rather than fun = 0, because
   ## castSeedDataQueensNeighbourhood, for example, will not perform calculations,
   ## rather than multiple many cells by zero to no effect; it also produces
   ## clearer plots without values outside the bounds of the borders of the
   ## spatial region of the geographical region represented in the raster.
   empty <- terra::init(susceptible, fun = NA)
-  c(susceptible, rep(empty, 5), Inhabited) %>%
+  c(terra::classify(susceptible, cbind(-Inf, 0, 0), right = FALSE, include.lowest = FALSE),
+    rep(empty, 5)) %>%
     "names<-"(c("Susceptible",
                 "Vaccinated",
                 "Exposed",
                 "Infected",
                 "Recovered",
-                "Dead",
-                "Inhabited"))
+                "Dead"))
+}
+
+##' The susceptible matrix is reclassified so positive values become one and
+##' negative values become zero. Values which are zero remain zero. This results
+##' in a binary classification of inhabitance when given a SpatRaster with
+##' population count or susceptible data; regardless, whatever input SpatRaster
+##' is provided, a binary classification of the values in the raster are
+##' returned in a SpatRaster of equal dimension and with the same coordinate
+##' reference system.
+##'
+##' The (re)-classification function built-in to terra is much faster than an
+##' ad-hoc implementation of the same behaviour, of course, so the built-in
+##' method is used (though it requries the reader to learn a little more of the
+##' raster library; a good, a necessary, penalty).
+##' @title Create a binary reclassification of the input SpatRaster
+##' @param inputRaster A SpatRaster of Susceptible people, or the
+##'   population count data
+##' @returns a binary reclassification of the input SpatRaster
+##' @author Bryce Carson
+classify.binary <- function(inputRaster) {
+  stopifnot(terra::nlyr(inputRaster) == 1)
+  ## Unit: milliseconds
+  ##                            expr      min       lq     mean   median       uq     max neval
+  ##  classify.binary(congo) 562.2161 781.7317 853.3972 802.9192 976.4928 1227.77   100
+  ##
+  ## terra::values(inputRaster)[terra::values(inputRaster) > 0] <- 1
+  ## terra::values(inputRaster)[terra::values(inputRaster) < 1] <- 0
+
+  ## Unit: milliseconds
+  ##                            expr      min       lq     mean   median       uq      max neval
+  ##  classify.binary(congo) 136.2108 147.4001 158.2525 154.9175 166.6182 236.5314   100
+  terra::classify(inputRaster,
+                  rbind(cbind(-Inf, 0,   0),
+                        cbind(0,    Inf, 1)),
+                  right = FALSE,
+                  include.lowest = FALSE)
 }
 
 ##' @title Average Euclidean Distance
@@ -1017,7 +1045,6 @@ SVEIRD.BayesianDataAssimilation <-
       callback() # Run the callback function, or NULL expression.
 
       ## FIXME: this seems totally wrong, given the next step! Why did I do it this way?
-      compartments <- terra::subset(layers, "Inhabited", negate = TRUE)
       compartments$Dead %<>% "*"(-1)
       compartments %<>% terra::global(sum, na.rm = TRUE)
 
@@ -1032,7 +1059,7 @@ SVEIRD.BayesianDataAssimilation <-
 
       ## The population is the sum of the susceptible, vaccinated, exposed,
       ## infected, and recovered compartments.
-      numberLiving <- sum(terra::subset(layers, c("Dead", "Inhabited"), negate = TRUE))
+      numberLiving <- sum(terra::subset(layers, c("Dead"), negate = TRUE))
 
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
@@ -1295,7 +1322,7 @@ assimilateData <-
     ## more sense to instead use NA values to prevent calculating values for
     ## uninhabitable areas.
     infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
-                              layers$Inhabited,
+                              classify.binary(layers$Susceptible),
                               maskvalues = 0,
                               updatevalue = 0)
 
