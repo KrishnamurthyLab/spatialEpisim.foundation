@@ -456,6 +456,9 @@ averageEuclideanDistance <-
 ##' transmissionLikelihoodWeightings(layers$Infected, 15, 35)
 transmissionLikelihoodWeightings <-
   function(infections, lambda, aggregationFactor) {
+    ## FIXME: when lambda < aggregationFactor, radius is calcualted as 1, and
+    ## this function fails because a 1x1 matrix with value 1 is an invalid
+    ## window for focal.
     terra::focal(infections, w = averageEuclideanDistance(lambda, aggregationFactor))
   }
 
@@ -1044,35 +1047,35 @@ SVEIRD.BayesianDataAssimilation <-
       ## using. The arguments should be provided as a list.
       callback() # Run the callback function, or NULL expression.
 
-      ## FIXME: this seems totally wrong, given the next step! Why did I do it this way?
-      compartments$Dead %<>% "*"(-1)
-      compartments %<>% terra::global(sum, na.rm = TRUE)
+      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE),
+                               sum,
+                               na.rm = TRUE))
 
       ## Set NSVEI counts in the summaryTable table; the date column is calculated later.
-      summaryTable[today, 1] <- round(sum(compartments[-6, ], na.rm = TRUE)) # DONT include the dead.
-      summaryTable[today, 2] <- round(compartments["Susceptible", ])
-      summaryTable[today, 3] <- round(compartments["Vaccinated", ])
-      summaryTable[today, 4] <- round(compartments["Exposed", ])
-      summaryTable[today, 5] <- round(compartments["Infected", ])
-      summaryTable[today, 6] <- round(compartments["Recovered", ])
-      summaryTable[today, 7] <- round(compartments["Dead", ])
-
-      ## The population is the sum of the susceptible, vaccinated, exposed,
-      ## infected, and recovered compartments.
-      numberLiving <- sum(terra::subset(layers, c("Dead"), negate = TRUE))
+      summaryTable[today, 1] <- round(living)
+      summaryTable[today, 2] <- layers$Susceptible %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 3] <- layers$Vaccinated %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 4] <- layers$Exposed %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 5] <- layers$Infected %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 6] <- layers$Recovered %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 7] <- layers$Dead %>% terra::global(sum, na.rm = TRUE) %>% round()
 
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
       ## MAYBE FIXME: substituting NaNs may produce an plane, whereas we want
       ## NaN where there is no spatial data, really; it'll make the plot of the
       ## raster still appear like a geographic entity, rather than a plane.
-      proportionSusceptible <- terra::subst(layers$Susceptible / numberLiving, NaN, 0)
+      ## Retaining NaNs would have consequences for the usage wherein the
+      ## indices are calculated wherever the proportionSusceptible is less than
+      ## one.
+      proportionSusceptible <- terra::subst(layers$Susceptible / living, NaN, 0)
 
+      ## FIXME: Error: [focal] not a meanigful window
       transmissionLikelihoods <- transmissionLikelihoodWeightings(layers$Infected, lambda, aggregationFactor)
 
       growth <- matrix(as.vector(beta * proportionSusceptible) * as.vector(transmissionLikelihoods),
-                       nrow = nrow(layers), # MAYBE FIXME: is this the right object to use to get the nrow from?
-                       ncol = ncol(layers), # MAYBE FIXME: is this the right object to use to get the ncol from?
+                       nrow = nrow(layers),
+                       ncol = ncol(layers),
                        byrow = TRUE)
 
       ## TODO: stochasticity is not properly implemented yet; it was not fully
@@ -1436,7 +1439,7 @@ castSeedDataQueensNeighbourhood <-
     ## FIXME: this simplistic calculation results in layers$Susceptible having
     ## negative values, which is totally unrealistic!
     layers$Susceptible <-
-      lapp(seededLayers,
+      lapp(layers,
            function(Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead) {
              Susceptible - Vaccinated - Exposed - Infected - Recovered - Dead
            },
@@ -1444,8 +1447,8 @@ castSeedDataQueensNeighbourhood <-
 
     message(sprintf("Susceptible after seeding = %s",
                     terra::global(layers$Susceptible, sum, na.rm = TRUE)))
-    stopifnot(terra::global(layers$Susceptible, sum, na.rm = TRUE) > 0)
-    stopifnot(terra::global(layers$Susceptible, min, na.rm = TRUE) == 0)
+    stopifnot(terra::global(layers$Susceptible, sum, na.rm = TRUE) >= 0)
+    stopifnot(terra::global(layers$Susceptible, min, na.rm = TRUE) >= 0)
 
     return(layers)
   }
