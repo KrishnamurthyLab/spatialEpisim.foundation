@@ -2,3 +2,7 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^loadDataForExamplesInteractive\.R$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$
