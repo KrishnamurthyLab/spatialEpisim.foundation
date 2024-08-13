@@ -23,7 +23,6 @@ License: GPL (>= 3)
 URL: https://github.com/ashokkrish/spatialEpisim-foundation
 BugReports: https://github.com/ashokkrish/spatialEpisim-foundation/issues
 Imports: 
-    cli,
     countrycode,
     dplyr,
     geodata,
@@ -37,6 +36,7 @@ Imports:
     tidyr,
     utils
 Suggests:
+    cli,
     readxl,
     lattice,
     testthat (>= 3.0.0)

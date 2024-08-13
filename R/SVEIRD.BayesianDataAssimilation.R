@@ -290,6 +290,9 @@ getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NU
   susceptible <- maskAndClassifySusceptibleSpatRaster(subregions, susceptible)
 
   if (!is.null(aggregationFactor)) {
+    ## FIXME №1: aggregation is cell-based, but Euclidean distances aren't and
+    ## nearly everywhere I document usage of aggregationFactor I claim it is
+    ## expressed in kilometres, but it isn't.
     susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = sum)
   }
 
@@ -883,7 +886,13 @@ Valid function names are:
 ##' @param Q.characteristicCorrelationLength TODO
 ##' @param neighbourhood TODO
 ##' @param callback a callback function to run, with no arguments, which will be
-##'   called every time the main loop of the simulation iterates.
+##'   called every time the main loop of the simulation iterates, or a list of
+##'   callback functions which run before, during, and after the loop, and which
+##'   has following structure. For each component, if the component is a list it
+##'   must have members fun and args, where fun is a function symbol and args is
+##'   a list of named arguments to the function; if it is not a list, the
+##'   component of the list (before, during, or after) must be a function. See
+##'   the examples.
 ##' @returns a summaryTable dataframe for the simulation, showing changes in the
 ##'   compartment values over time, the daily values, and cumulative values.
 ##' @author Bryce Carson
@@ -911,7 +920,8 @@ Valid function names are:
 ##' data("healthZonesCongo", package = "spatialEpisim.foundation")
 ##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
-##' rasterAggregationFactor = 10
+##' rasterAggregationFactor = 9
+##' august.days <- 31
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -919,12 +929,12 @@ Valid function names are:
 ##'   gamma = 1/7,
 ##'   sigma = 1/36,
 ##'   delta = 2/36,
-##'   lambda = 45,
+##'   lambda = 18,
 ##'   ## Model runtime
-##'   n.days = 31, # a month, permitting three assimilations of observed data
+##'   n.days = august.days, # a month, permitting three assimilations of observed data
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
-##'   neighbourhood.order = 1,
+##'   neighbourhood.order = 3,
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
 ##'                                 aggregationFactor = rasterAggregationFactor),
@@ -942,7 +952,11 @@ Valid function names are:
 ##'   Q.characteristicCorrelationLength = 6.75e-1,
 ##'   neighbourhood = 3,
 ##'   psi.diagonal = 1e-3,
-##'   callback = cli::cli_progress_update
+##'   callback = list(before = list(fun = cli::cli_progress_bar,
+##'                                 args = list(name = "Simulating epidemic (SEI-type)",
+##'                                             total = august.days)),
+##'                   during = cli::cli_progress_update,
+##'                   after = cli::cli_progress_done)
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters influencing differential equations
@@ -1037,19 +1051,26 @@ SVEIRD.BayesianDataAssimilation <-
       terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
     }
 
-    cli::cli_progress_bar("Simulating epidemic (SEI-type)", total = n.days)
+    ## MAYBE replace this type checking with lobstr:: namespaced functions?
+    if (is.list(callback) && hasName(callback, "during") && is.list(callback$during)) {
+      if (all(hasName(callback$before, "args"), is.list(callback$before$args)))
+        do.call(callback$before$fun, args = callback$before$args)
+      else
+        callback$before()
+    }
 
     ## TODO: all of the calcualtions within this loop should be spatial
     ## calcualtions on the SpatRasters, and no conversion to vector or matrix
     ## should be performed unless absolutely necessary.
     for (today in seq(n.days)) {
-      ## TODO: At this URL, StackOverflow user Roman provides a reprex for a
-      ## waitress callback function to generate a progress bar.
-      ## https://stackoverflow.com/a/77496657/14211497. DONT change this; the
-      ## callback function call here should only be modified to include a
-      ## general set of arguments that a callback function may be interested in
-      ## using. The arguments should be provided as a list.
-      callback() # Run the callback function, or NULL expression.
+      ## MAYBE replace this type checking with lobstr:: namespaced functions?
+      if (is.list(callback) && hasName(callback, "during") && is.list(callback$during)) {
+        if (all(hasName(callback$during, "args"), is.list(callback$during$args)))
+          do.call(callback$during$fun, args = callback$during$args)
+        else
+          callback$during()
+      } else if (is.function(callback))
+        callback()
 
       living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE),
                                sum,
@@ -1136,7 +1157,13 @@ SVEIRD.BayesianDataAssimilation <-
       layers.timeseries[[today]] <- layers
     }
 
-    cli::cli_progress_done()
+    ## MAYBE replace this type checking with lobstr:: namespaced functions?
+    if (is.list(callback) && hasName(callback, "after") && is.list(callback$after)) {
+      if (all(hasName(callback$after, "args"), is.list(callback$after$args)))
+        do.call(callback$after$fun, args = callback$after$args)
+      else
+        callback$after()
+    }
 
     ## TODO: the entire column can be calculated one time and added to the
     ## summaryTable data at the end of the function.

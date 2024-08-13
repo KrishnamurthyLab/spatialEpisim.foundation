@@ -28,4 +28,21 @@ test_that("Population SpatRaster is as described", {
 
 ## "Bayesian data assimilation works correctly"
 
-## "Casting seed data in a Moore neighbourhood works correctly"
+test_that("Casting seed data in a Queen's neighbourhood of a given order works correctly", {
+  expect_error(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, -10))
+
+  ## NOTE: it should also work for higher orders, though these will never be used. Primarily, zero or one will be used.
+  expect_no_error(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0))
+  expect_no_error(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1))
+  expect_no_error(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 2))
+})
+
+## Create this stuff in a fixture that all other tests can use
+subregionsSpatVector <-
+  system.file("extdata", "subregionsSpatVector", package = "spatialEpisim.foundation", mustWork = TRUE) %>%
+  terra::vect()
+susceptibleSpatRaster <-
+  system.file("extdata", "susceptibleSpatRaster.tif", package = "spatialEpisim.foundation", mustWork = TRUE) %>%
+  terra::rast()
+layers <- getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster, aggregationFactor = 35)
+data("InitialInfections.fourCities")
