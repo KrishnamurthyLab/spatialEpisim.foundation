@@ -396,15 +396,16 @@ averageEuclideanDistance <-
   function(lambda, aggregationFactor = 1, epsilon = 0) {
     radius <-
       if (lambda <= aggregationFactor)
-        round((lambda - aggregationFactor) / aggregationFactor + epsilon) + 1
+        1
       else
-        lambda + aggregationFactor
+        round((lambda - aggregationFactor) / aggregationFactor + epsilon) + 1
 
     stopifnot(radius %in% seq(floor(radius), ceiling(radius)))
 
     avg.euc.dist <- function(i, j) {
       exp(-sqrt(sum((c(i, j) - c(radius + 1, radius + 1))^2)) / lambda)
     }
+
     len <- seq_len(1 + radius * 2)
     weights <-
       dplyr::mutate(
