@@ -2,6 +2,8 @@
 "_PACKAGE"
 
 ## usethis namespace: start
+#' @importFrom lubridate days
+#' @importFrom lubridate ymd
 #' @importFrom magrittr %<>%
 #' @importFrom magrittr %>%
 #' @importFrom utils download.file

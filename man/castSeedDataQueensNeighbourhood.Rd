@@ -38,7 +38,7 @@ The Moore neighbourhood around the locations given in the seed data is
 affected with the initial values recorded in the provided seed data. The
 infected and exposed compartments are cast in a Moore neighbourhood of cells
 about the geographical coordinates recorded locations, while other
-compartments are cast directly into the cell corresponding exazctly to the
+compartments are cast directly into the cell corresponding exactly to the
 location, not a Moore neighbourhood.
 }
 \details{
@@ -68,8 +68,6 @@ layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 data(initialInfections.fourCities, package = "spatialEpisim.foundation")
 terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0)$Susceptible)
 terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1)$Susceptible)
-terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 2)$Susceptible)
-terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 3)$Susceptible)
 }
 \author{
 Bryce Carson

@@ -171,92 +171,21 @@ getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
     subset(.$NAME_1 %in% level1Region)
 }
 
-## NOTE: This function is related to cropping "base" rasters, and plotting them
-## using the Haxby colour table. For more information on the Haxby colour table,
-## see the entry for Haxby in the r.colors documentation of the GRASS GIS
-## software suite: https://grass.osgeo.org/grass83/manuals/r.colors.html; this
-## states "relative colors for bathymetry or topography".
-##' Plot a raster cropped to a specific region(s)
-##'
-##' As a side effect, it writes a raster to file.
-##' @title Plot a raster cropped to sub-region(s) of a country
-##' @author Bryce Carson
-##' @author gursDhaliwal
-##' @author Ashok Krishnmaurthy
-##' @author Michael Myer
-##' @author Thomas White
-##' @param subregions a SpatRaster object for subregions, created with
-##'   getCountrySubregions.SpatVector
-##' @param susceptible SpatRaster or SpatVector to be masked by GADM data
-##'   of the country
-##' @returns a SpatRaster, cropped and reclassified
-##' @export
-##' @keywords internal
-##' @examples
-##' library(lattice)
-##' subregionsSpatVector <- terra::vect(
-##'   system.file(
-##'     "extdata",
-##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
-##'     "subregionsSpatVector",
-##'     package = "spatialEpisim.foundation",
-##'     mustWork = TRUE
-##'   )
-##' )
-##' susceptibleSpatRaster <- terra::rast(
-##'   system.file(
-##'     "extdata",
-##'     "susceptibleSpatRaster.tif", # Congo population
-##'     package = "spatialEpisim.foundation",
-##'     mustWork = TRUE
-##'   )
-##' )
-##' masked <- maskAndClassifySusceptibleSpatRaster(subregionsSpatVector,
-##'                                                susceptibleSpatRaster)
-##' terra::plot(masked)
-##'
-##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("CZE", "Prague"),
-##'                                      getCountryPopulation.SpatRaster("CZE"))
-##'
-##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("NGA", "Lagos"),
-##'                                      getCountryPopulation.SpatRaster("NGA"))
-##'
-##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("COD", "Ituri"),
-##'                                      getCountryPopulation.SpatRaster("COD"))
-##'
-##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri")),
-##'                                      getCountryPopulation.SpatRaster("COD"))
-maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
-  terra::crs(subregions) <- terra::crs(susceptible, proj = TRUE)
-
-  ## NOTE: these two values were betwixt the call of rast and classify, which
-  ## are only piped to remove the use of an unnecssary assignment whilst these
-  ## interjecting values are unused and therefore don't need to be calculated.
-  ## Rather than interjecting and elongating the pipe's line count, they are
-  ## moved here (before the pipe), so only a relevant comment interjects in the
-  ## pipeline.
-
-  ## Mask the susceptible SpatRaster by the subregions SpatRaster
-  terra::crop(susceptible, subregions, mask = TRUE) %>%
-  ## NOTE: this is refactored, but untested. NOTE: this seems to classify the
-  ## values as 1:7, if they have a value between the bin lower limits; that is,
-  ## bin the values into classes delineated by the given vector of minimums for
-  ## the bins.
-  terra::classify(c(0, 10, 25, 50, 100, 250, 1000, 10000)) %>%
-    "levels<-"(levels(.)[[1]])
-}
-
 ##' @title Create a SpatRaster of SVEIRD model compartment raster data
-##' @description Create a list of SpatRaster objects, one for each component in
+##' @description Create a SpatRaster objects, with a layer for each component in
 ##'   an SVEIRD epidemic model.
 ##' @details The SpatRaster objects for the VEIRD components are empty, the
-##'   input SpatRaster is the only layer with non-zero values (if any existed before).
+##'   input SpatRaster is taken as the Suscptible layer, the only layer with
+##'   non-zero values (if any existed before).
 ##' @param subregions a SpatVector object of subregions used to crop the SVEIRD
 ##'   SpatRaster
-##' @param susceptible a RasterLayer, pre-aggregated if that is wished.
+##' @param population a SpatRaster of population count data; it must be
+##'   pre-aggregated if any aggregation is to be used during the simulation;
+##'   none is performed by this function or downstream functions in the overall
+##'   implementation of [SVEIRD.BayesianDataAssimilation] simulations.
 ##' @param aggregationFactor the number of cells in any direction to aggregate
-##'   together into one, in the susceptible ratser, after masking with the
-##'   subregions vector, before creating the list
+##'   together into one, in the input raster, after masking with the subregions
+##'   vector.
 ##' @returns a SpatRaster, with layers for the SVERID components
 ##' @author Bryce Carson
 ##' @author Michael Myer
@@ -287,24 +216,22 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
 ##' ## aggregation factor of zero or one is meaningless and will produce an
 ##' ## error.
 ##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
-getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NULL) {
-  ## TODO: rename susceptible in this function to population, since it is actually population count data.
-  susceptible <- maskAndClassifySusceptibleSpatRaster(subregions, susceptible)
+getSVEIRD.SpatRaster <- function(subregions, population, aggregationFactor = NULL) {
+  terra::crs(subregions) <- terra::crs(population, proj = TRUE)
+  population <- terra::crop(population, subregions, mask = TRUE)
 
   if (!is.null(aggregationFactor)) {
-    ## FIXME №1: aggregation is cell-based, but Euclidean distances aren't and
-    ## nearly everywhere I document usage of aggregationFactor I claim it is
-    ## expressed in kilometres, but it isn't.
-    susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = "sum")
+    population <- terra::aggregate(population, fact = aggregationFactor, fun = "sum", na.rm = TRUE)
   }
 
   ## NOTE: It is faster to use fun = NA, rather than fun = 0, because
   ## castSeedDataQueensNeighbourhood, for example, will not perform calculations,
-  ## rather than multiple many cells by zero to no effect; it also produces
+  ## rather than multiply many cells by zero to no effect; it also produces
   ## clearer plots without values outside the bounds of the borders of the
   ## spatial region of the geographical region represented in the raster.
-  empty <- terra::init(susceptible, fun = NA)
-  c(terra::classify(susceptible, cbind(-Inf, 0, 0), right = FALSE, include.lowest = FALSE),
+  empty <- terra::init(population, fun = NA)
+  ## MAYBE FIXME: why am I not using the reclassifyNegatives function here?
+  c(terra::classify(population, cbind(-Inf, 0, 0), right = FALSE, include.lowest = FALSE),
     rep(empty, 5)) %>%
     "names<-"(c("Susceptible",
                 "Vaccinated",
@@ -391,6 +318,7 @@ classify.binary <- function(inputRaster) {
 ##' lattice::levelplot(as.array(averageEuclideanDistance(100, 35)))
 averageEuclideanDistance <-
   function(lambda, aggregationFactor = 1, epsilon = 0) {
+    stopifnot(aggregationFactor > 0)
     radius <-
       if (lambda <= aggregationFactor)
         1
@@ -774,7 +702,9 @@ Valid function names are:
 ##'   already is. Higher orders follow the simple formula `(2 * x + 1)^2` to
 ##'   determine the number of cells over which to evenly disperse the exposed
 ##'   and infected state variables. All other state variables are placed
-##'   directly in the grid cell corresponding to the health zone.
+##'   directly in the grid cell corresponding to the health zone. At the moment
+##'   orders higher than one are prohibited, so the only valid values for this
+##'   argument are zero and one.
 ##' @param seedData a dataframe, as described in [initialInfections.fourCities].
 ##' @param simulationIsDeterministic Whether stochasticity is enabled or not; if
 ##'   the simulation is deterministic then no stochastic processes are used and
@@ -819,8 +749,7 @@ Valid function names are:
 ##'   }
 ##' @param incidenceData A "situation report" dataframe. The first column
 ##'   provides the date of the officially reported, observed incidence of the
-##'   disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
-##'   parameter to be one week prior to the first observed data?
+##'   disease, in YYYY-MM-DD format.
 ##'
 ##'   \preformatted{
 ##'     Date    Beni  Biena  Butembo  Goma  Kalunguta
@@ -846,7 +775,9 @@ Valid function names are:
 ##'   Q matrix.
 ##' @param Q.backgroundErrorStandardDeviation TODO
 ##' @param Q.characteristicCorrelationLength TODO
-##' @param neighbourhood TODO
+##' @param neighbourhood.Bayes The neighbourhood used in Bayesian data
+##'   assimilation; this is different from that used in the casting of seed data
+##'   about a neighbourhood of cells.
 ##' @param callback a callback function to run, with no arguments, which will be
 ##'   called every time the main loop of the simulation iterates, or a list of
 ##'   callback functions which run before, during, and after the loop, and which
@@ -883,7 +814,7 @@ Valid function names are:
 ##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 ##' rasterAggregationFactor = 9
-##' august.days <- 31
+##' simluation.days <- 440
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -893,17 +824,17 @@ Valid function names are:
 ##'   delta = 2/36,
 ##'   lambda = 18,
 ##'   ## Model runtime
-##'   n.days = august.days, # a month, permitting three assimilations of observed data
+##'   n.days = simluation.days, # a month, permitting three assimilations of observed data
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
-##'   neighbourhood.order = 3,
+##'   neighbourhood.order = 1,
 ##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                 susceptibleSpatRaster,
 ##'                                 aggregationFactor = rasterAggregationFactor),
 ##'   aggregationFactor = rasterAggregationFactor,
-##'   startDate = "2018-08-05",
+##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
-##'   incidenceData = Congo.EbolaIncidence,
+##'   incidenceData = head(Congo.EbolaIncidence),
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = FALSE,
@@ -912,13 +843,45 @@ Valid function names are:
 ##'   ## Special parameters
 ##'   Q.backgroundErrorStandardDeviation = 0.55,
 ##'   Q.characteristicCorrelationLength = 6.75e-1,
-##'   neighbourhood = 3,
+##'   neighbourhood.Bayes = 3,
 ##'   psi.diagonal = 1e-3,
 ##'   callback = list(before = list(fun = cli::cli_progress_bar,
 ##'                                 args = list(name = "Simulating epidemic (SEI-type)",
-##'                                             total = august.days)),
+##'                                             total = simluation.days)),
 ##'                   during = cli::cli_progress_update,
 ##'                   after = cli::cli_progress_done)
+##' )
+##'
+##' SVEIRD.BayesianDataAssimilation(
+##'   ## Parameters
+##'   alpha = 3.5e-5,
+##'   beta = 7e-3,
+##'   gamma = 1/7,
+##'   sigma = 1/36,
+##'   delta = 2/36,
+##'   lambda = 18,
+##'   ## Model runtime
+##'   n.days = 31,
+##'   ## Model data
+##'   seedData = initialInfections.fourCities,
+##'   neighbourhood.order = 1,
+##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                                 susceptibleSpatRaster,
+##'                                 aggregationFactor = rasterAggregationFactor),
+##'   aggregationFactor = rasterAggregationFactor,
+##'   startDate = "2018-08-01",
+##'   countryCodeISO3C = "COD",
+##'   incidenceData = head(Congo.EbolaIncidence, n = 2),
+##'   ## Model options
+##'   simulationIsDeterministic = TRUE,
+##'   dataAssimilationEnabled = TRUE,
+##'   healthZoneCoordinates = healthZonesCongo,
+##'   variableCovarianceFunction = "DBD",
+##'   ## Special parameters
+##'   Q.backgroundErrorStandardDeviation = 0.55,
+##'   Q.characteristicCorrelationLength = 6.75e-1,
+##'   neighbourhood.Bayes = 3,
+##'   psi.diagonal = 1e-3
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters influencing differential equations
@@ -951,7 +914,7 @@ SVEIRD.BayesianDataAssimilation <-
            ## Special parameters
            Q.backgroundErrorStandardDeviation,
            Q.characteristicCorrelationLength,
-           neighbourhood,
+           neighbourhood.Bayes,
            psi.diagonal,
 
            ## Monitoring and logging
@@ -959,19 +922,28 @@ SVEIRD.BayesianDataAssimilation <-
     ## MAYBE: missing a better option than using NULLs as defaults?
     compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
 
+    incidenceData$Date <- lubridate::ymd(incidenceData$Date)
+    startDate <- lubridate::ymd(startDate)
+    stopifnot(startDate <= dplyr::first(incidenceData$Date))
+
     ## NOTE: Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summaryTable".
-    names <- c(## Population and epidemic compartments (states)
+    names <- c(
+      ## Population and epidemic compartments (states)
       "N", "S", "V", "E", "I", "R", "D",
       ## Daily values of new vaccinations, exposures, infections,
       ## recoveries, and deaths
       "newV", "newE", "newI", "newR","newD",
       ## Cumulative values of exposed or infected people through the
       ## simulation runtime
-      "cumE", "cumI")
+      "cumE", "cumI"
+    )
     summaryTable <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
+    summaryTable <- cbind(tibble::tibble(Date = startDate + lubridate::days(0:(n.days - 1))),
+                          summaryTable)
+    stopifnot(all(incidenceData$Date %in% summaryTable$Date))
 
     layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
 
@@ -983,7 +955,7 @@ SVEIRD.BayesianDataAssimilation <-
                                       variableCovarianceFunction,
                                       Q.backgroundErrorStandardDeviation,
                                       Q.characteristicCorrelationLength,
-                                      neighbourhood)
+                                      neighbourhood.Bayes)
       H <- linearInterpolationMatrix <- matrices.Bayes$H
       HQHt <- matrices.Bayes$HQHt
       QHt <- matrices.Bayes$QHt
@@ -996,17 +968,6 @@ SVEIRD.BayesianDataAssimilation <-
     ## the SpatRaster representing a different timestep. Search for "timestep"
     ## in the terra documentation.
     layers.timeseries <- vector(mode = "list", length = n.days)
-
-    ## TODO: absolutely do not use this "datarow". There's a much better way.
-    ## NOTE: datarow is a sentinel value used to prevent trying to assimilate
-    ## more data than exists in the observed data dataframe. The rows are weekly
-    ## data; it may be easier to simply check if there is more data to
-    ## assimilate, and whenever the simulation date is one day before the the
-    ## observed data date, or the same day, then it is assimilated. Using a
-    ## sentinel value for the row from which we read the data to assimilate each
-    ## week is simplistic, but may actually be more efficient than other
-    ## approaches.
-    datarow <- 1
 
     ## Spit is a "play on words" in SpatRaster
     reclassifyNegatives <- function(spit) {
@@ -1060,7 +1021,8 @@ SVEIRD.BayesianDataAssimilation <-
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
                      w = averageEuclideanDistance(lambda, aggregationFactor),
-                     fun = "sum")
+                     fun = "sum",
+                     na.rm = TRUE)
       stopifnot(length(unique(as.vector(transmissionLikelihoods))) > 1)
 
       ## NOTE: transmission likelihoods is the force of infection.
@@ -1102,29 +1064,18 @@ SVEIRD.BayesianDataAssimilation <-
       layers$Recovered   <- sum(c(layers$Recovered, newRecovered))
       layers$Dead        <- sum(c(layers$Dead, newDead))
 
-      ## NOTE: assimilate observed data weekly, not more or less frequently,
-      ## while there is still data to assimilate. TODO: there are some
-      ## alternatives that could be implemented for when to assimilate data; a
-      ## check against the current simulation date and the reporting dates can
-      ## be made, and whenever these align assimilation could occur.
-      shouldAssimilateData <- all(dataAssimilationEnabled,
-                                  today %% 7 == 0,
-                                  datarow <= nrow(incidenceData))
-
-      ## if (summaryTable$Date[[today]] %in% incidenceData$Date) { ## MAYBE
-      if (shouldAssimilateData && summaryTable$Date[[today]] %in% incidenceData$Date) {
+      if (dataAssimilationEnabled && summaryTable$Date[[today]] %in% incidenceData$Date) {
+        todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable$Date[[today]]))[, -c(1, 2)]
         infectedExposedLayers <-
           assimilateData(layers,
                          linearInterpolationMatrix,
-                         incidenceData[datarow, -c(1, 2)], # drop the Situation Report Number and Date columns (retain latitude, longitude, and place(s) columns; it's wide data).
-                         ## incidenceData[summaryTable$Date[[today]], -c(1, 2)], # MAYBE this instead, see the NOTE above.
+                         todaysIncidenceData,
                          healthZoneCoordinates,
                          psi.diagonal,
                          QHt,
                          HQHt)
         layers$Infected <- infectedExposedLayers$Infected
         layers$Exposed <- infectedExposedLayers$Exposed
-        datarow <- datarow + 1
       }
 
       layers.timeseries[[today]] <- layers
@@ -1138,9 +1089,6 @@ SVEIRD.BayesianDataAssimilation <-
         callback$after()
     }
 
-    ## TODO: the entire column can be calculated one time and added to the
-    ## summaryTable data at the end of the function.
-    ## summaryTable[today, 1]  <- toString(as.Date(startDate) + n.days(today - 1))
     ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
     ## always replace it in our summaryTable table; for some variables it makes sense
     ## that the value is zero (no fatalities, infections, exposures, et cetera),
@@ -1295,7 +1243,8 @@ assimilateData <-
            HQHt) {
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
     ## TODO: Ashok is asking Thomas White about the meaning of "rat" in this
-    ## context; he is checking with Thomas why 1e-9 was chosen as well.
+    ## context; he is checking with Thomas why 1e-9 was chosen as well. DONE:
+    ## see the email Ashok sent to me this morning, Thursday August 15, 2024.
     rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
@@ -1350,7 +1299,7 @@ assimilateData <-
 ##' affected with the initial values recorded in the provided seed data. The
 ##' infected and exposed compartments are cast in a Moore neighbourhood of cells
 ##' about the geographical coordinates recorded locations, while other
-##' compartments are cast directly into the cell corresponding exazctly to the
+##' compartments are cast directly into the cell corresponding exactly to the
 ##' location, not a Moore neighbourhood.
 ##'
 ##' The Moore neighbourhood is calculated using a simple arithmetical algorithm.
@@ -1402,11 +1351,10 @@ assimilateData <-
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
 ##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0)$Susceptible)
 ##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1)$Susceptible)
-##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 2)$Susceptible)
-##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 3)$Susceptible)
 castSeedDataQueensNeighbourhood <-
   function(layers, seedData, neighbourhood.order) {
-    stopifnot(any(neighbourhood.order == c(0, 1, 2, 3)))
+    ## This function works for higher orders, but we limit it to zeroth or first order.
+    stopifnot(any(neighbourhood.order == c(0, 1)))
     message(sprintf("Susceptible before seeding = %s",
                     terra::global(layers$Susceptible, sum, na.rm = TRUE)))
 

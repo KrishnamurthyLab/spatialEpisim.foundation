@@ -26,7 +26,7 @@ SVEIRD.BayesianDataAssimilation(
   variableCovarianceFunction,
   Q.backgroundErrorStandardDeviation,
   Q.characteristicCorrelationLength,
-  neighbourhood,
+  neighbourhood.Bayes,
   psi.diagonal,
   callback = `{`
 )
@@ -53,7 +53,9 @@ neighbourhood, and corresponds to only the same cell where the queen
 already is. Higher orders follow the simple formula \code{(2 * x + 1)^2} to
 determine the number of cells over which to evenly disperse the exposed
 and infected state variables. All other state variables are placed
-directly in the grid cell corresponding to the health zone.}
+directly in the grid cell corresponding to the health zone. At the moment
+orders higher than one are prohibited, so the only valid values for this
+argument are zero and one.}
 
 \item{lambda}{the average dialy movement distance of an individual (in
 kilometers).}
@@ -72,8 +74,7 @@ that used to generate the SpatRaster for layers.}
 
 \item{incidenceData}{A "situation report" dataframe. The first column
 provides the date of the officially reported, observed incidence of the
-disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
-parameter to be one week prior to the first observed data?
+disease, in YYYY-MM-DD format.
 
 \preformatted{
     Date    Beni  Biena  Butembo  Goma  Kalunguta
@@ -148,7 +149,9 @@ Q matrix.}
 
 \item{Q.characteristicCorrelationLength}{TODO}
 
-\item{neighbourhood}{TODO}
+\item{neighbourhood.Bayes}{The neighbourhood used in Bayesian data
+assimilation; this is different from that used in the casting of seed data
+about a neighbourhood of cells.}
 
 \item{psi.diagonal}{TODO}
 
@@ -194,7 +197,7 @@ data("healthZonesCongo", package = "spatialEpisim.foundation")
 data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 rasterAggregationFactor = 9
-august.days <- 31
+simluation.days <- 440
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -204,17 +207,17 @@ SVEIRD.BayesianDataAssimilation(
   delta = 2/36,
   lambda = 18,
   ## Model runtime
-  n.days = august.days, # a month, permitting three assimilations of observed data
+  n.days = simluation.days, # a month, permitting three assimilations of observed data
   ## Model data
   seedData = initialInfections.fourCities,
-  neighbourhood.order = 3,
+  neighbourhood.order = 1,
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
                                 aggregationFactor = rasterAggregationFactor),
   aggregationFactor = rasterAggregationFactor,
-  startDate = "2018-08-05",
+  startDate = "2018-08-01",
   countryCodeISO3C = "COD",
-  incidenceData = Congo.EbolaIncidence,
+  incidenceData = head(Congo.EbolaIncidence),
   ## Model options
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = FALSE,
@@ -223,13 +226,45 @@ SVEIRD.BayesianDataAssimilation(
   ## Special parameters
   Q.backgroundErrorStandardDeviation = 0.55,
   Q.characteristicCorrelationLength = 6.75e-1,
-  neighbourhood = 3,
+  neighbourhood.Bayes = 3,
   psi.diagonal = 1e-3,
   callback = list(before = list(fun = cli::cli_progress_bar,
                                 args = list(name = "Simulating epidemic (SEI-type)",
-                                            total = august.days)),
+                                            total = simluation.days)),
                   during = cli::cli_progress_update,
                   after = cli::cli_progress_done)
+)
+
+SVEIRD.BayesianDataAssimilation(
+  ## Parameters
+  alpha = 3.5e-5,
+  beta = 7e-3,
+  gamma = 1/7,
+  sigma = 1/36,
+  delta = 2/36,
+  lambda = 18,
+  ## Model runtime
+  n.days = 31,
+  ## Model data
+  seedData = initialInfections.fourCities,
+  neighbourhood.order = 1,
+  layers = getSVEIRD.SpatRaster(subregionsSpatVector,
+                                susceptibleSpatRaster,
+                                aggregationFactor = rasterAggregationFactor),
+  aggregationFactor = rasterAggregationFactor,
+  startDate = "2018-08-01",
+  countryCodeISO3C = "COD",
+  incidenceData = head(Congo.EbolaIncidence, n = 2),
+  ## Model options
+  simulationIsDeterministic = TRUE,
+  dataAssimilationEnabled = TRUE,
+  healthZoneCoordinates = healthZonesCongo,
+  variableCovarianceFunction = "DBD",
+  ## Special parameters
+  Q.backgroundErrorStandardDeviation = 0.55,
+  Q.characteristicCorrelationLength = 6.75e-1,
+  neighbourhood.Bayes = 3,
+  psi.diagonal = 1e-3
 )
 }
 \author{

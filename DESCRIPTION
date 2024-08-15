@@ -27,6 +27,7 @@ Imports:
     dplyr,
     geodata,
     httr2,
+    lubridate,
     magrittr,
     Matrix,
     purrr,

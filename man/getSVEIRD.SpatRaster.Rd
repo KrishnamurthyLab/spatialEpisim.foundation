@@ -4,28 +4,32 @@
 \alias{getSVEIRD.SpatRaster}
 \title{Create a SpatRaster of SVEIRD model compartment raster data}
 \usage{
-getSVEIRD.SpatRaster(subregions, susceptible, aggregationFactor = NULL)
+getSVEIRD.SpatRaster(subregions, population, aggregationFactor = NULL)
 }
 \arguments{
 \item{subregions}{a SpatVector object of subregions used to crop the SVEIRD
 SpatRaster}
 
-\item{susceptible}{a RasterLayer, pre-aggregated if that is wished.}
+\item{population}{a SpatRaster of population count data; it must be
+pre-aggregated if any aggregation is to be used during the simulation;
+none is performed by this function or downstream functions in the overall
+implementation of \link{SVEIRD.BayesianDataAssimilation} simulations.}
 
 \item{aggregationFactor}{the number of cells in any direction to aggregate
-together into one, in the susceptible ratser, after masking with the
-subregions vector, before creating the list}
+together into one, in the input raster, after masking with the subregions
+vector.}
 }
 \value{
 a SpatRaster, with layers for the SVERID components
 }
 \description{
-Create a list of SpatRaster objects, one for each component in
+Create a SpatRaster objects, with a layer for each component in
 an SVEIRD epidemic model.
 }
 \details{
 The SpatRaster objects for the VEIRD components are empty, the
-input SpatRaster is the only layer with non-zero values (if any existed before).
+input SpatRaster is taken as the Suscptible layer, the only layer with
+non-zero values (if any existed before).
 }
 \examples{
 subregionsSpatVector <- terra::vect(
