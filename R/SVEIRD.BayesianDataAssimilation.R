@@ -215,19 +215,17 @@ getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
 ##'                                                susceptibleSpatRaster)
 ##' terra::plot(masked)
 ##'
-##' \dontrun{
-##' maskAndClassifySusceptibleSpatRaster(getSubregion("CZE", "Prague"),
+##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("CZE", "Prague"),
 ##'                                      getCountryPopulation.SpatRaster("CZE"))
 ##'
-##' maskAndClassifySusceptibleSpatRaster(getSubregion("NGA", "Lagos"),
+##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("NGA", "Lagos"),
 ##'                                      getCountryPopulation.SpatRaster("NGA"))
 ##'
-##' maskAndClassifySusceptibleSpatRaster(getSubregion("COD", "Ituri"),
+##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("COD", "Ituri"),
 ##'                                      getCountryPopulation.SpatRaster("COD"))
 ##'
-##' maskAndClassifySusceptibleSpatRaster(getSubregion("COD", c("Nord-Kivu", "Ituri")),
+##' maskAndClassifySusceptibleSpatRaster(getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri")),
 ##'                                      getCountryPopulation.SpatRaster("COD"))
-##' }
 maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
   terra::crs(subregions) <- terra::crs(susceptible, proj = TRUE)
 
