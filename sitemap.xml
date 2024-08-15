@@ -1,6 +1,8 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/404.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/LICENSE.html</loc></url>
+<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/articles/Getting_Started.html</loc></url>
+<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/articles/index.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/authors.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/index.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/Congo.EbolaIncidence.html</loc></url>
@@ -9,6 +11,7 @@
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/assimilateData.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/averageEuclideanDistance.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/castSeedDataQueensNeighbourhood.html</loc></url>
+<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/classify.binary.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/dot-onLoad.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/downloadWorldPopData.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/getCountryPopulation.SpatRaster.html</loc></url>
@@ -22,6 +25,5 @@
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/maskAndClassifySusceptibleSpatRaster.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/setupBayesianDataAssimilation.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/spatialEpisim.foundation-package.html</loc></url>
-<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/transmissionLikelihoodWeightings.html</loc></url>
 </urlset>
 

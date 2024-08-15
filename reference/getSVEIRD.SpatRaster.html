@@ -18,6 +18,10 @@ an SVEIRD epidemic model."></head><body>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/Getting_Started.html">Getting_Started</a></li>
+  </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/ashokkrish/spatialEpisim-foundation/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -49,7 +53,8 @@ an SVEIRD epidemic model.</p>
 
 
 <dl><dt id="arg-subregions">subregions<a class="anchor" aria-label="anchor" href="#arg-subregions"></a></dt>
-<dd><p>a SpatVector object of subregions used to crop the SVEIRD SpatRaster</p></dd>
+<dd><p>a SpatVector object of subregions used to crop the SVEIRD
+SpatRaster</p></dd>
 
 
 <dt id="arg-susceptible">susceptible<a class="anchor" aria-label="anchor" href="#arg-susceptible"></a></dt>
@@ -64,14 +69,12 @@ subregions vector, before creating the list</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>a SpatRaster, with layers for the SVERID components and an
-additional layer classifying the Inhabited status of a cell</p>
+    <p>a SpatRaster, with layers for the SVERID components</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The SpatRaster objects for the VEIRD components are empty, while
-the Inhabited SpatRaster is a binary classification on habitation of land
-area.</p>
+    <p>The SpatRaster objects for the VEIRD components are empty, the
+input SpatRaster is the only layer with non-zero values (if any existed before).</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -100,16 +103,16 @@ area.</p>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">getSVEIRD.SpatRaster</span><span class="op">(</span><span class="va">subregionsSpatVector</span>, <span class="va">susceptibleSpatRaster</span>,</span></span>
-<span class="r-in"><span>                     aggregationFactor <span class="op">=</span> <span class="fl">35</span><span class="op">)</span></span></span>
+<span class="r-in"><span>                     aggregationFactor <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> class       : SpatRaster </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> dimensions  : 20, 14, 6  (nrow, ncol, nlyr)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> resolution  : 0.2916667, 0.2916667  (x, y)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> extent      : 27.22375, 31.30708, -2.15875, 3.674584  (xmin, xmax, ymin, ymax)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dimensions  : 69, 49, 6  (nrow, ncol, nlyr)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resolution  : 0.08333333, 0.08333333  (x, y)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> extent      : 27.22375, 31.30708, -2.075416, 3.674584  (xmin, xmax, ymin, ymax)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> coord. ref. : lon/lat WGS 84 (EPSG:4326) </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> source(s)   : memory</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> names       : Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> min values  :           0,        NaN,     NaN,      NaN,       NaN,  NaN </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> max values  :        5211,        NaN,     NaN,      NaN,       NaN,  NaN </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> max values  :         565,        NaN,     NaN,      NaN,       NaN,  NaN </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">## Omitting the aggregation factor argument will prevent aggregation. An</span></span></span>
 <span class="r-in"><span><span class="co">## aggregation factor of zero or one is meaningless and will produce an</span></span></span>

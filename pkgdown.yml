@@ -1,8 +1,9 @@
 pandoc: 3.1.11
 pkgdown: 2.1.0
 pkgdown_sha: ~
-articles: {}
-last_built: 2024-08-13T02:40Z
+articles:
+  Getting_Started: Getting_Started.html
+last_built: 2024-08-15T06:00Z
 urls:
   reference: https://krishnamurthylab.github.io/spatialEpisim.foundation/reference
   article: https://krishnamurthylab.github.io/spatialEpisim.foundation/articles
