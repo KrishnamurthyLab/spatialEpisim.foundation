@@ -100,7 +100,7 @@ data("healthZonesCongo", package = "spatialEpisim.foundation")
 linearInterpolationOperator(
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
-                                aggregationFactor = 35),
+                                aggregationFactor = 10),
   healthZoneCoordinates = healthZonesCongo
 )
 
@@ -108,7 +108,7 @@ H.matrix <-
   linearInterpolationOperator(
     layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                   susceptibleSpatRaster,
-                                  aggregationFactor = 35),
+                                  aggregationFactor = 10),
     healthZoneCoordinates = healthZonesCongo,
     neighbourhood.order = 1
   )
@@ -117,7 +117,7 @@ plot(as.array(H.matrix[1, ]))
 linearInterpolationOperator(
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
-                                aggregationFactor = 35),
+                                aggregationFactor = 10),
   healthZoneCoordinates = healthZonesCongo,
   neighbourhood.order = 2
 )

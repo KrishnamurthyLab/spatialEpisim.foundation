@@ -1,0 +1,70 @@
+---
+title: "Getting_Started"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting_Started}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(spatialEpisim.foundation)
+```
+
+# Installation
+Installation is covered in the [Installation](TODO) vignette.
+
+# Storage configuration
+Unless the [spatialEpisim.data] package (included in the list of suggested
+packages in the DESCRIPTION file of this package) is installed and successfully
+attached, then the option `spatialEpisim.foundation.datapath` must be set
+correctly.
+
+The path described in the option `spatialEpisim.foundation.datapath` is used for
+storing spatial raster and vector data that is needed for
+spatialEpisim.foundation to be useful.
+
+By default, if this option is `NULL` is set to
+`path.expand("~/spatialEpisim.foundation.data")`.
+
+# Setup for simulation
+[SVEIRD.BayesianDataAssimilation] is used with an object referred to as
+`layers`. This SpatRaster-classed object contains layers for each of the
+compartments in an SVEIRD simulation.
+
+<!-- TODO: open an issue to track SVEIRD, SEIRD, SEIR, et cetera simulations.
+These sorts of simulations cannot be run yet (all simulations are SVEIRD), and
+therefore the `layers` object must have layers for each of the compartments.
+When other compartmental models are possible the shape of `layers` must be
+decided upon. -->
+
+# Raster aggregation
+[getSVEIRD.SpatRaster] is the function used to aggregate a SpatRaster, and it
+will call [maskAndClassifySusceptibleSpatRaster] for the user, masking it with
+the provided SpatVector object. This is the easiest way to aggregate a
+SpatRaster object for use with spatialEpisim.foundation. Aggregation without
+this function, *id est* using `terra::aggregate` on a SpatRaster beforehand,
+will lead to inaccurate results, because the `aggregationFactor` argument of
+[getSVEIRD.SpatRaster] and [SVEIRD.BayesianDataAssimilation] is used throughout
+various parts of the algorithm.
+
+If this approach to aggregation does not meet your needs, please contact the
+maintainer of the package and request a feature enhancement that meeds your
+needs, or fork the project and modify it to your needs.
+
+It's recommended to define a variable, `rasterAggregationFactor`, to pass to
+both [SVEIRD.BayesianDataAssimilation] and [getSVEIRD.SpatRaster] to ensure it
+is the same. See the examples for the former function.
+
+# Preparing seed data
+Seed data is required in a wide format; see the [initialInfections.fourCities]
+data description for its shape. The Location variable is the names of cities,
+which should be found within the names of the SpatVector provided to
+[getSVEIRD.SpatRaster].

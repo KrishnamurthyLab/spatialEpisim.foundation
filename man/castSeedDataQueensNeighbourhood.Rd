@@ -5,9 +5,12 @@
 \title{Seed the initial infections, and other compartments, in a spatial
 simluation}
 \usage{
-castSeedDataQueensNeighbourhood(seedData, neighbourhood.order, layers)
+castSeedDataQueensNeighbourhood(layers, seedData, neighbourhood.order)
 }
 \arguments{
+\item{layers}{The SpatRaster object with layers Susceptible, Vaccinated,
+Exposed, Infected, Recovered, and Dead.}
+
 \item{seedData}{a dataframe like the following example; the compartment
 columns are the initial values.
 
@@ -26,9 +29,6 @@ already is. Higher orders follow the simple formula \code{(2 * x + 1)^2} to
 determine the number of cells over which to evenly disperse the exposed
 and infected state variables. All other state variables are placed
 directly in the grid cell corresponding to the health zone.}
-
-\item{layers}{The SpatRaster object with layers Susceptible, Vaccinated,
-Exposed, Infected, Recovered, and Dead.}
 }
 \value{
 the input layers SpatRaster, modified with the seeded data.
@@ -64,11 +64,12 @@ susceptibleSpatRaster <- terra::rast(
 )
 layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                susceptibleSpatRaster,
-                               aggregationFactor = 35)
+                               aggregationFactor = 10)
 data(initialInfections.fourCities, package = "spatialEpisim.foundation")
-plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 0, layers))
-castSeedDataQueensNeighbourhood(initialInfections.fourCities, 1, layers)
-plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 3, layers))
+terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0)$Susceptible)
+terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1)$Susceptible)
+terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 2)$Susceptible)
+terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 3)$Susceptible)
 }
 \author{
 Bryce Carson

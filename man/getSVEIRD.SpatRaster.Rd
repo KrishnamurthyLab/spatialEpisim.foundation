@@ -7,7 +7,8 @@
 getSVEIRD.SpatRaster(subregions, susceptible, aggregationFactor = NULL)
 }
 \arguments{
-\item{subregions}{a SpatVector object of subregions used to crop the SVEIRD SpatRaster}
+\item{subregions}{a SpatVector object of subregions used to crop the SVEIRD
+SpatRaster}
 
 \item{susceptible}{a RasterLayer, pre-aggregated if that is wished.}
 
@@ -16,17 +17,15 @@ together into one, in the susceptible ratser, after masking with the
 subregions vector, before creating the list}
 }
 \value{
-a SpatRaster, with layers for the SVERID components and an
-additional layer classifying the Inhabited status of a cell
+a SpatRaster, with layers for the SVERID components
 }
 \description{
 Create a list of SpatRaster objects, one for each component in
 an SVEIRD epidemic model.
 }
 \details{
-The SpatRaster objects for the VEIRD components are empty, while
-the Inhabited SpatRaster is a binary classification on habitation of land
-area.
+The SpatRaster objects for the VEIRD components are empty, the
+input SpatRaster is the only layer with non-zero values (if any existed before).
 }
 \examples{
 subregionsSpatVector <- terra::vect(
@@ -47,7 +46,7 @@ susceptibleSpatRaster <- terra::rast(
   )
 )
 getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster,
-                     aggregationFactor = 35)
+                     aggregationFactor = 10)
 
 ## Omitting the aggregation factor argument will prevent aggregation. An
 ## aggregation factor of zero or one is meaningless and will produce an

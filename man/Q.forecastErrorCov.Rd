@@ -57,7 +57,7 @@ susceptibleSpatRaster <- terra::rast(
 )
 layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                susceptibleSpatRaster,
-                               aggregationFactor = 35)
+                               aggregationFactor = 10)
 Ituri.Q.forecastErrorCov <- Q.forecastErrorCov(layers, "DBD", 2, 0.8, 4, 2)
 }
 \author{

@@ -43,15 +43,10 @@ formula due to Bolker (1999) gives the area of the disk.
 
 See the article titled \emph{A clarification of transmission terms in
 host-microparasite models by Begon et al.} (2002).
-
-The count of infected persons, or incidence, raster data provided to the
-caller of this function, i.e. \link{transmissionLikelihoodWeightings}, may be
-aggregated by a given factor greater than one, \code{aggregationFactor}; it is
-passed regardless.
 }
 \examples{
 averageEuclideanDistance(lambda = 15) # No raster aggregation
-averageEuclideanDistance(lambda = 15, aggregationFactor = 35)
+averageEuclideanDistance(lambda = 15, aggregationFactor = 10)
 
 lattice::levelplot(as.array(averageEuclideanDistance(15)))
 lattice::levelplot(as.array(averageEuclideanDistance(100, 35)))

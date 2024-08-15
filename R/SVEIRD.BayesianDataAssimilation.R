@@ -105,7 +105,9 @@ downloadWorldPopData <- function(countryCodeISO3C, folder = getOption("spatialEp
 ##' ## than explicitly provide the path.
 ##' lvl1AdminBorders("COD", file.path("data", "gadm"))
 ##' }
-lvl1AdminBorders <- function(countryCodeISO3C, folder = geodata::geodata_path()) {
+lvl1AdminBorders <- function(countryCodeISO3C, folder) {
+  if (missing(folder)) folder <- geodata::geodata_path()
+  stopifnot(dir.exists(folder))
   geodata::gadm(
     country = countryCodeISO3C,
     level = 1,
@@ -187,6 +189,7 @@ getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
 ##'   getCountrySubregions.SpatVector
 ##' @param susceptible SpatRaster or SpatVector to be masked by GADM data
 ##'   of the country
+##' @returns a SpatRaster, cropped and reclassified
 ##' @export
 ##' @keywords internal
 ##' @examples
@@ -287,13 +290,14 @@ maskAndClassifySusceptibleSpatRaster <- function(subregions, susceptible) {
 ##' ## error.
 ##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
 getSVEIRD.SpatRaster <- function(subregions, susceptible, aggregationFactor = NULL) {
+  ## TODO: rename susceptible in this function to population, since it is actually population count data.
   susceptible <- maskAndClassifySusceptibleSpatRaster(subregions, susceptible)
 
   if (!is.null(aggregationFactor)) {
     ## FIXME №1: aggregation is cell-based, but Euclidean distances aren't and
     ## nearly everywhere I document usage of aggregationFactor I claim it is
     ## expressed in kilometres, but it isn't.
-    susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = sum)
+    susceptible <- terra::aggregate(susceptible, fact = aggregationFactor, fun = "sum")
   }
 
   ## NOTE: It is faster to use fun = NA, rather than fun = 0, because
@@ -370,11 +374,6 @@ classify.binary <- function(inputRaster) {
 ##'
 ##'   See the article titled *A clarification of transmission terms in
 ##'   host-microparasite models by Begon et al.* (2002).
-##'
-##'   The count of infected persons, or incidence, raster data provided to the
-##'   caller of this function, i.e. [transmissionLikelihoodWeightings], may be
-##'   aggregated by a given factor greater than one, `aggregationFactor`; it is
-##'   passed regardless.
 ##' @param lambda the average dialy movement distance of an individual (in
 ##'   kilometers).
 ##' @param aggregationFactor the factor of aggregation applied to the raster
@@ -415,55 +414,12 @@ averageEuclideanDistance <-
       dplyr::select(averageEuclideanDistance) %>%
       unlist(use.names = FALSE) %>%
       base::matrix(byrow = TRUE, ncol = sqrt(length(.)))
+
+    ## NOTE: it is required that the matrix returned is square, and that its
+    ## number of rows or columns are odd-numbered.
     stopifnot(dim(weights)[1] == dim(weights)[2])
     stopifnot(dim(weights)[1] %% 2 == 1)
     return(weights)
-  }
-
-##' @title Weighted Sums
-##' @description Calculate a matrix of weights respecting human mobility
-##'   patterns.
-##' @details The pattern of human mobility used is described in a slideshow
-##'   here:
-##'   https://docs.google.com/presentation/d/1_gqcEh4d8yRy22tCZkU0MbGYSsGu3Djh/edit?usp=sharing&ouid=102231457806738400087&rtpof=true&sd=true.
-##' @inherit SVEIRD.BayesianDataAssimilation
-##' @param infections a matrix of the count of infections per aggregate area in
-##'   a raster of terrestrial data.
-##' @returns a matrix of weightings for the calculation of the proportionOfSusceptible of
-##'   exposed individuals who will become infectious.
-##' @author Bryce Carson
-##' @author Thomas White
-##' @export
-##' @keywords internal
-##' @examples
-##' library(terra)
-##' subregionsSpatVector <- vect(
-##'   system.file(
-##'     "extdata",
-##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
-##'     "subregionsSpatVector",
-##'     package = "spatialEpisim.foundation",
-##'     mustWork = TRUE
-##'   )
-##' )
-##' susceptibleSpatRaster <- rast(
-##'   system.file(
-##'     "extdata",
-##'     "susceptibleSpatRaster.tif", # Congo population
-##'     package = "spatialEpisim.foundation",
-##'     mustWork = TRUE
-##'   )
-##' )
-##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
-##'                                susceptibleSpatRaster,
-##'                                aggregationFactor = 10)
-##' transmissionLikelihoodWeightings(layers$Infected, 15, 10)
-transmissionLikelihoodWeightings <-
-  function(infections, lambda, aggregationFactor) {
-    ## FIXME: when lambda < aggregationFactor, radius is calcualted as 1, and
-    ## this function fails because a 1x1 matrix with value 1 is an invalid
-    ## window for focal.
-    terra::focal(infections, w = averageEuclideanDistance(lambda, aggregationFactor))
   }
 
 ##' @title Linear (Forward) Interpolation Operator matrices for one or two state
@@ -570,110 +526,117 @@ transmissionLikelihoodWeightings <-
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   neighbourhood.order = 2
 ##' )
-linearInterpolationOperator <-
-  function(layers,
-           healthZoneCoordinates,
-           neighbourhood.order = 0,
-           compartmentsReported = 1) {
-    stopifnot(neighbourhood.order %in% c(0, 1, 2))
-    ## TODO: add an argument to select one cell (no neighbourhood, a Moore
-    ## neighbourhood, or a 2nd-order Chess Queen's neighbourhood). A second order
-    ## neighbour can't be calculated with the current algorithm if the number of
-    ## columns is less than five.
-    if (neighbourhood.order == 2) stopifnot(ncol(layers) >= 5)
-    stopifnot(compartmentsReported %in% 1:2) # NOTE: this is defensive programming; I've only implemented these cases.
+linearInterpolationOperator <- function(layers,
+                                        healthZoneCoordinates,
+                                        neighbourhood.order = 0,
+                                        compartmentsReported = 1) {
+  stopifnot(neighbourhood.order %in% c(0, 1, 2))
+  if (neighbourhood.order == 2)
+    stopifnot(terra::ncell(layers) >= 5 && terra::nrow(layers) >= 5) # required for 2nd order
+  stopifnot(compartmentsReported %in% 1:2)
 
-    queensNeighbours <- function(order, cell, ncols) {
-      stopifnot(order %in% 1:2)
+  queensNeighbours <- function(order, cell, ncols) {
+    stopifnot(order %in% 1:2)
 
-      if (order == 1) {
-        neighbouringCells <-
-          c((cell - ncols - 1) : (cell - ncols + 1),
-            cell - 1 , cell + 1,
-            (cell + ncols - 1) : (cell + ncols + 1))
-        stopifnot(length(neighbouringCells) == 8)
-      } else if (order == 2) {
-        neighbouringCells <-
-          c((cell - ncols * 2 - 2) : (cell - ncols * 2 + 2),
-            cell - ncols - 2 , cell - ncols + 2,
-            cell - 2 , cell + 2,
-            cell + ncols - 2 , cell + ncols + 2,
-            (cell + ncols * 2 - 2) : (cell + ncols * 2 + 2))
-        stopifnot(length(neighbouringCells) == 16)
-      }
-
-      neighbouringCells
+    if (order == 1) {
+      neighbouringCells <-
+        c((cell - ncols - 1) : (cell - ncols + 1),
+          cell - 1 , cell + 1,
+          (cell + ncols - 1) : (cell + ncols + 1))
+      stopifnot(length(neighbouringCells) == 8)
+    } else if (order == 2) {
+      neighbouringCells <-
+        c((cell - ncols * 2 - 2) : (cell - ncols * 2 + 2),
+          cell - ncols - 2 , cell - ncols + 2,
+          cell - 2 , cell + 2,
+          cell + ncols - 2 , cell + ncols + 2,
+          (cell + ncols * 2 - 2) : (cell + ncols * 2 + 2))
+      stopifnot(length(neighbouringCells) == 16)
     }
 
-    extend.length <- 5
-    layers <- terra::extend(layers, extend.length)
-
-    ## NOTE: cells contains the index into the rasters in layers (when converted
-    ## to a matrix). MAYBE FIXME: The coordinates are re-ordered as
-    ## longitude-latitude, rather than latitude-longitude as they are otherwise
-    ## stored; the reason is due to the generation of NAs in the resulting matrix,
-    ## otherwise, according to the previous implementation.
-    cells <- terra::cellFromXY(layers, terra::as.matrix(healthZoneCoordinates[, 3:2]))
-    if (anyDuplicated(cells) > 0)
-      warning("Raster aggregation factor is too high to differentiate between two (or more) health zones (they correspond to the same grid cell).")
-    if (any(is.na(cells)))
-      warning("Ignoring NAs in [cells] object corresponding to coordinates out of bounds of [layers] raster.")
-
-    cells <- cells[!is.na(cells)]
-
-    ## NOTE: preallocate the linear forward interpolation matrix, with
-    ## dimensions q * p (health zones by cells in the SpatRaster).
-    H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
-
-    ## NOTE: these are the weightings used for the chess queen zeroth, first,
-    ## and second order neighbors. The zeroth order neighbor is the position of
-    ## the queen itself.
-    neighbour.weights <-
-      switch(neighbourhood.order + 1, # the first of ... applies to zero, etc.
-             1,
-             c(2, 1) * 0.1,
-             c(3, 2, 1) * 35^-1)
-
-    for (index in seq_along(cells)) {
-      H.extended[index, cells[index]] <- neighbour.weights[1]
-
-      if (neighbourhood.order != 0) {
-        neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
-        H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
-      }
-
-      if (neighbourhood.order == 2) {
-        neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
-        if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
-          simpleError("Duplicate cell indices among neighbours of multiple localities.")
-        H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
-      }
-    }
-
-    stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
-    stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
-                                     ncol = ncol(layers),
-                                     byrow = TRUE)),
-                          1))
-
-    if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended)
-
-    ## NOTE: the extended areas of the matrix are now dropped to return the matrix
-    ## to the expected size for the input.
-    interpolationOperatorMatrix <-
-      apply(X = H.extended,
-            MARGIN = 1, # apply the function to rows
-            FUN =
-              function(row) {
-                m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-                m[(extend.length + 1):(terra::nrow(m) - extend.length),
-                (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
-                  Matrix::t() %>% # row-major order (byrow)
-                  as.vector()
-              }) %>% Matrix::t() # rows should be health zones
-
-    return(interpolationOperatorMatrix)
+    neighbouringCells
   }
+
+  extend.length <- 5
+  layers <- terra::extend(layers, extend.length)
+
+  ## NOTE: cells contains the index into the rasters in layers (when converted
+  ## to a matrix). Extract coordinates as cbind(lon, lat); it's stored as
+  ## cbind(lat, lon).
+  cells <- terra::cellFromXY(layers, terra::as.matrix(healthZoneCoordinates[, 3:2]))
+  if (any(duplicated(cells))) {
+    warning("[Linear interpolation operator] Raster aggregation factor is too high to differentiate between two (or more) health zones (they correspond to the same grid cell).")
+    tibble::tibble("Health Zone" = healthZoneCoordinates[, 1], Cell = cells) %>%
+      dplyr::group_by(Cell) %>%
+      dplyr::filter(dplyr::n() != 1) %>%
+      print()
+  }
+  if (any(is.na(cells)))
+    warning("Ignoring NAs in [cells] object corresponding to coordinates out of bounds of [layers] SpatRaster.")
+
+  cells <- cells[!is.na(cells)]
+
+  ## NOTE: preallocate the linear forward interpolation matrix, with
+  ## dimensions q * p (health zones by cells in the SpatRaster).
+  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
+
+  ## NOTE: these are the weightings used for the chess queen zeroth, first,
+  ## and second order neighbors. The zeroth order neighbor is the position of
+  ## the queen itself.
+  neighbour.weights <-
+    switch(neighbourhood.order + 1, # the first of ... applies to zero, etc.
+           1,
+           c(2, 1) * 0.1,
+           c(3, 2, 1) * 35^-1)
+
+  for (index in seq_along(cells)) {
+    H.extended[index, cells[index]] <- neighbour.weights[1]
+
+    if (neighbourhood.order != 0) {
+      neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
+      H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
+    }
+
+    if (neighbourhood.order == 2) {
+      neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
+      if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
+        simpleError("Duplicate cell indices among neighbours of multiple localities.")
+      H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
+    }
+  }
+
+  ## TODO: move the following NOTE to a better place than here; perhaps to the
+  ## function documentation details. This should be tested using automatic
+  ## testing with various input values. NOTE: this corresponds to the
+  ## hand-written note I made after discussion with Ashok. He told me that the
+  ## sum of all cells needs to be equivalent to one; the sum of all cells is
+  ## per-health zone, ergo the first condition checks that the sum of the
+  ## entire matrix (with nrow := health zones) is the same as the number of
+  ## health zones (because each should sum to one).
+  stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
+  stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
+                                   ncol = ncol(layers),
+                                   byrow = TRUE)),
+                        1))
+
+  if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended)
+
+  ## NOTE: the extended areas of the matrix are now dropped to return the matrix
+  ## to the expected size for the input.
+  interpolationOperatorMatrix <-
+    apply(X = H.extended,
+          MARGIN = 1, # apply the function to rows
+          FUN =
+            function(row) {
+              m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
+              m[(extend.length + 1):(terra::nrow(m) - extend.length),
+              (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
+                Matrix::t() %>% # row-major order (byrow)
+                as.vector()
+            }) %>% Matrix::t() # rows should be health zones
+
+  return(interpolationOperatorMatrix)
+}
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
 ##' @details TODO: write the details about the implementation of this function.
@@ -945,7 +908,7 @@ Valid function names are:
 ##'   incidenceData = Congo.EbolaIncidence,
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
-##'   dataAssimilationEnabled = TRUE,
+##'   dataAssimilationEnabled = FALSE,
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   variableCovarianceFunction = "DBD",
 ##'   ## Special parameters
@@ -995,19 +958,19 @@ SVEIRD.BayesianDataAssimilation <-
 
            ## Monitoring and logging
            callback = `{`) {
-    ## MAYBE: is missing a better option? NULL defaults influence the decision...
+    ## MAYBE: missing a better option than using NULLs as defaults?
     compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
 
     ## NOTE: Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summaryTable".
     names <- c(## Population and epidemic compartments (states)
-               "N", "S", "V", "E", "I", "R", "D",
-               ## Daily values of new vaccinations, exposures, infections,
-               ## recoveries, and deaths
-               "newV", "newE", "newI", "newR","newD",
-               ## Cumulative values of exposed or infected people through the
-               ## simulation runtime
-               "cumE", "cumI")
+      "N", "S", "V", "E", "I", "R", "D",
+      ## Daily values of new vaccinations, exposures, infections,
+      ## recoveries, and deaths
+      "newV", "newE", "newI", "newR","newD",
+      ## Cumulative values of exposed or infected people through the
+      ## simulation runtime
+      "cumE", "cumI")
     summaryTable <-
       data.frame(matrix(data = 0, ncol = length(names), nrow = n.days)) %>%
       "colnames<-"(names)
@@ -1049,7 +1012,7 @@ SVEIRD.BayesianDataAssimilation <-
 
     ## Spit is a "play on words" in SpatRaster
     reclassifyNegatives <- function(spit) {
-      terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE)
+      terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE, include.lowest = FALSE)
     }
 
     ## MAYBE replace this type checking with lobstr:: namespaced functions?
@@ -1073,36 +1036,45 @@ SVEIRD.BayesianDataAssimilation <-
       } else if (is.function(callback))
         callback()
 
-      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE),
-                               sum,
-                               na.rm = TRUE))
+      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE), sum, na.rm = TRUE))
 
-      ## Set NSVEI counts in the summaryTable table; the date column is calculated later.
+      ## NOTE: set the previous timesteps compartment count values in the summary table before calculating values for
+      ## the current timestep.
       summaryTable[today, 1] <- round(living)
-      summaryTable[today, 2] <- layers$Susceptible %>% terra::global(sum, na.rm = TRUE) %>% round()
-      summaryTable[today, 3] <- layers$Vaccinated %>% terra::global(sum, na.rm = TRUE) %>% round()
-      summaryTable[today, 4] <- layers$Exposed %>% terra::global(sum, na.rm = TRUE) %>% round()
-      summaryTable[today, 5] <- layers$Infected %>% terra::global(sum, na.rm = TRUE) %>% round()
-      summaryTable[today, 6] <- layers$Recovered %>% terra::global(sum, na.rm = TRUE) %>% round()
-      summaryTable[today, 7] <- layers$Dead %>% terra::global(sum, na.rm = TRUE) %>% round()
+      summaryTable[today, 2] <- round(terra::global(layers$Susceptible, sum, na.rm = TRUE))
+      summaryTable[today, 3] <- round(terra::global(layers$Vaccinated,  sum, na.rm = TRUE))
+      summaryTable[today, 4] <- round(terra::global(layers$Exposed,     sum, na.rm = TRUE))
+      summaryTable[today, 5] <- round(terra::global(layers$Infected,    sum, na.rm = TRUE))
+      summaryTable[today, 6] <- round(terra::global(layers$Recovered,   sum, na.rm = TRUE))
+      summaryTable[today, 7] <- round(terra::global(layers$Dead,        sum, na.rm = TRUE))
 
       newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
 
-      ## MAYBE FIXME: substituting NaNs may produce an plane, whereas we want
+      ## MAYBE: substituting NaNs may produce an plane, whereas we want
       ## NaN where there is no spatial data, really; it'll make the plot of the
       ## raster still appear like a geographic entity, rather than a plane.
       ## Retaining NaNs would have consequences for the usage wherein the
       ## indices are calculated wherever the proportionSusceptible is less than
       ## one.
-      proportionSusceptible <- terra::subst(layers$Susceptible / living, NaN, 0)
+      proportionSusceptible <- terra::subst(layers$Susceptible / living, NaN, 0) # alike total-mass action in Episim.
 
-      ## FIXME: Error: [focal] not a meanigful window
-      transmissionLikelihoods <- transmissionLikelihoodWeightings(layers$Infected, lambda, aggregationFactor)
+      ## NOTE: Calculate a matrix of weights respecting human mobility patterns.
+      transmissionLikelihoods <-
+        terra::focal(x = layers$Infected,
+                     w = averageEuclideanDistance(lambda, aggregationFactor),
+                     fun = "sum")
+      stopifnot(length(unique(as.vector(transmissionLikelihoods))) > 1)
 
-      growth <- matrix(as.vector(beta * proportionSusceptible) * as.vector(transmissionLikelihoods),
-                       nrow = nrow(layers),
-                       ncol = ncol(layers),
-                       byrow = TRUE)
+      ## NOTE: transmission likelihoods is the force of infection.
+      ## growth <- matrix(as.vector(beta * proportionSusceptible) *
+      ##                  as.vector(transmissionLikelihoods),
+      ##                  nrow = nrow(layers),
+      ##                  ncol = ncol(layers),
+      ##                  byrow = TRUE)
+      ## MAYBE use the following form instead; conversion to matrices and
+      ## vectors may not be necessary; type coercion takes time.
+      ##
+      growth <- beta * proportionSusceptible * transmissionLikelihoods
 
       ## TODO: stochasticity is not properly implemented yet; it was not fully
       ## supported in the previous implementation. It's likely that using
@@ -1111,45 +1083,47 @@ SVEIRD.BayesianDataAssimilation <-
       ## NOTE: any indices of these objects which were less than one will be the
       ## same indices that are set to zero in the newExposed object.
       indices <- c(proportionSusceptible < 1, transmissionLikelihoods < 1)
-      newExposed[unlist(indices[-length(indices)])] <- 0
+      newExposed <- terra::mask(newExposed, indices, maskvalues = TRUE, updatevalue = 0)
       dailyExposed <- sum(newExposed)
 
-      newInfected <- reclassifyNegatives(gamma * (layers$Exposed + newExposed))
+      newInfected <- reclassifyNegatives(gamma * sum(c(layers$Exposed, newExposed)))
       dailyInfected <- sum(newInfected)
 
       ## Some infectious people are going to either recover or die
-      infectious <- reclassifyNegatives(layers$Infected + newInfected)
+      infectious <- reclassifyNegatives(sum(c(layers$Infected, newInfected)))
       newRecovered <- sigma * infectious
       dailyRecovered <- sum(newRecovered)
 
       newDead <- reclassifyNegatives(delta * infectious)
       dailyDead <- sum(newDead)
 
-      ## NOTE: each of these should be a SpatRaster, and thereby the arithmetic
-      ## is cell-by-cell.
-      layers$Susceptible <- layers$Susceptible - newExposed - newVaccinated;
-      layers$Vaccinated  <- layers$Vaccinated  - newVaccinated
-      layers$Exposed     <- layers$Exposed     + newExposed  - newInfected
-      layers$Infected    <- layers$Infected    + newInfected - newDead - newRecovered
-      layers$Recovered   <- layers$Recovered   + newRecovered
-      layers$Dead        <- layers$Dead        + newDead
+      layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated))
+      layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated))
+      layers$Exposed     <- sum(c(layers$Exposed, newExposed, -1 * newInfected))
+      layers$Infected    <- sum(c(layers$Infected, newInfected, -1 * newDead, -1 * newRecovered))
+      layers$Recovered   <- sum(c(layers$Recovered, newRecovered))
+      layers$Dead        <- sum(c(layers$Dead, newDead))
 
       ## NOTE: assimilate observed data weekly, not more or less frequently,
       ## while there is still data to assimilate. TODO: there are some
       ## alternatives that could be implemented for when to assimilate data; a
-      ## check against the current simulaiton date and the reporting dates can
+      ## check against the current simulation date and the reporting dates can
       ## be made, and whenever these align assimilation could occur.
       shouldAssimilateData <- all(dataAssimilationEnabled,
                                   today %% 7 == 0,
                                   datarow <= nrow(incidenceData))
-      if (shouldAssimilateData) {
-        infectedExposedLayers <- assimilateData(layers,
-                                                linearInterpolationMatrix,
-                                                incidenceData[datarow, -c(1, 2)],
-                                                healthZoneCoordinates,
-                                                psi.diagonal,
-                                                QHt,
-                                                HQHt)
+
+      ## if (summaryTable$Date[[today]] %in% incidenceData$Date) { ## MAYBE
+      if (shouldAssimilateData && summaryTable$Date[[today]] %in% incidenceData$Date) {
+        infectedExposedLayers <-
+          assimilateData(layers,
+                         linearInterpolationMatrix,
+                         incidenceData[datarow, -c(1, 2)], # drop the Situation Report Number and Date columns (retain latitude, longitude, and place(s) columns; it's wide data).
+                         ## incidenceData[summaryTable$Date[[today]], -c(1, 2)], # MAYBE this instead, see the NOTE above.
+                         healthZoneCoordinates,
+                         psi.diagonal,
+                         QHt,
+                         HQHt)
         layers$Infected <- infectedExposedLayers$Infected
         layers$Exposed <- infectedExposedLayers$Exposed
         datarow <- datarow + 1
@@ -1428,13 +1402,13 @@ assimilateData <-
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 10)
 ##' data(initialInfections.fourCities, package = "spatialEpisim.foundation")
-##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 0, layers))
-##' castSeedDataQueensNeighbourhood(initialInfections.fourCities, 1, layers)
-##' plot(castSeedDataQueensNeighbourhood(initialInfections.fourCities, 3, layers))
+##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0)$Susceptible)
+##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1)$Susceptible)
+##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 2)$Susceptible)
+##' terra::plot(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 3)$Susceptible)
 castSeedDataQueensNeighbourhood <-
   function(layers, seedData, neighbourhood.order) {
-    stopifnot(neighbourhood.order %in% seq(floor(neighbourhood.order),
-                                           ceiling(neighbourhood.order)))
+    stopifnot(any(neighbourhood.order == c(0, 1, 2, 3)))
     message(sprintf("Susceptible before seeding = %s",
                     terra::global(layers$Susceptible, sum, na.rm = TRUE)))
 

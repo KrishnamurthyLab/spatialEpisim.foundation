@@ -153,7 +153,13 @@ Q matrix.}
 \item{psi.diagonal}{TODO}
 
 \item{callback}{a callback function to run, with no arguments, which will be
-called every time the main loop of the simulation iterates.}
+called every time the main loop of the simulation iterates, or a list of
+callback functions which run before, during, and after the loop, and which
+has following structure. For each component, if the component is a list it
+must have members fun and args, where fun is a function symbol and args is
+a list of named arguments to the function; if it is not a list, the
+component of the list (before, during, or after) must be a function. See
+the examples.}
 }
 \value{
 a summaryTable dataframe for the simulation, showing changes in the
@@ -187,6 +193,8 @@ susceptibleSpatRaster <- terra::rast(
 data("healthZonesCongo", package = "spatialEpisim.foundation")
 data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
+rasterAggregationFactor = 9
+august.days <- 31
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -194,29 +202,34 @@ SVEIRD.BayesianDataAssimilation(
   gamma = 1/7,
   sigma = 1/36,
   delta = 2/36,
-  lambda = 15,
+  lambda = 18,
   ## Model runtime
-  n.days = 31, # a month, permitting three assimilations of observed data
+  n.days = august.days, # a month, permitting three assimilations of observed data
   ## Model data
   seedData = initialInfections.fourCities,
-  neighbourhood.order = 1,
+  neighbourhood.order = 3,
   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
                                 susceptibleSpatRaster,
-                                aggregationFactor = 35),
-  aggregationFactor = 35,
+                                aggregationFactor = rasterAggregationFactor),
+  aggregationFactor = rasterAggregationFactor,
   startDate = "2018-08-05",
   countryCodeISO3C = "COD",
   incidenceData = Congo.EbolaIncidence,
   ## Model options
   simulationIsDeterministic = TRUE,
-  dataAssimilationEnabled = TRUE,
+  dataAssimilationEnabled = FALSE,
   healthZoneCoordinates = healthZonesCongo,
   variableCovarianceFunction = "DBD",
   ## Special parameters
   Q.backgroundErrorStandardDeviation = 0.55,
   Q.characteristicCorrelationLength = 6.75e-1,
   neighbourhood = 3,
-  psi.diagonal = 1e-3
+  psi.diagonal = 1e-3,
+  callback = list(before = list(fun = cli::cli_progress_bar,
+                                args = list(name = "Simulating epidemic (SEI-type)",
+                                            total = august.days)),
+                  during = cli::cli_progress_update,
+                  after = cli::cli_progress_done)
 )
 }
 \author{

@@ -13,6 +13,9 @@ getCountrySubregions.SpatVector}
 \item{susceptible}{SpatRaster or SpatVector to be masked by GADM data
 of the country}
 }
+\value{
+a SpatRaster, cropped and reclassified
+}
 \description{
 Plot a raster cropped to a specific region(s)
 }

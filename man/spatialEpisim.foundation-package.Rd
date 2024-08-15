@@ -12,6 +12,7 @@ Spatial epidemic simulations using SVEIRD compartmental epidemic models (Suscept
 Useful links:
 \itemize{
   \item \url{https://github.com/ashokkrish/spatialEpisim-foundation}
+  \item \url{https://krishnamurthylab.github.io/spatialEpisim.foundation/}
   \item Report bugs at \url{https://github.com/ashokkrish/spatialEpisim-foundation/issues}
 }
 

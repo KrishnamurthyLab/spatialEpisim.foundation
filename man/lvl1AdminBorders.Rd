@@ -4,7 +4,7 @@
 \alias{lvl1AdminBorders}
 \title{Retrieve a SpatRaster of level 1 boundaries from local or remote disk}
 \usage{
-lvl1AdminBorders(countryCodeISO3C, folder = geodata::geodata_path())
+lvl1AdminBorders(countryCodeISO3C, folder)
 }
 \arguments{
 \item{countryCodeISO3C}{The uppercase ISO three character code a recognized
