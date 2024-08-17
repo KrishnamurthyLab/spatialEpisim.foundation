@@ -117,14 +117,14 @@ lvl1AdminBorders <- function(countryCodeISO3C, folder) {
   )
 }
 
-##' Create a named RasterLayer object useful for spatiotemporal epidemic
-##' compartmental modelling.
-##' @title Create a Susceptible-component RasterLayer
+##' Retrieve a SpatRaster useful for spatiotemporal epidemic compartmental
+##' modelling.
+##' @title Retrieve a population count SpatRaster
 ##' @param countryCodeISO3C The uppercase ISO three character code a recognized
 ##'   country.
 ##' @param folder Passed on to method downloadWorldPopData
-##' @returns A SpatRaster of WorldPop population count data with the name
-##'   Susceptible, with all NAs replaced by zeros.
+##' @returns A SpatRaster of WorldPop population count data with the layer name
+##'   "Population", with all NAs replaced by zeros.
 ##' @author Bryce Carson
 ##' @author Michael Myer
 ##' @author Ashok Krishnmaurthy
@@ -132,16 +132,15 @@ lvl1AdminBorders <- function(countryCodeISO3C, folder) {
 ##' @examples
 ##' getCountryPopulation.SpatRaster("COD")
 getCountryPopulation.SpatRaster <- function(countryCodeISO3C, folder = NULL) {
-  countryRaster <-
-    if(is.null(folder)) {
-      downloadWorldPopData(countryCodeISO3C)
-    } else {
-      downloadWorldPopData(countryCodeISO3C, folder)
-    }
-
-  countrySpatRaster <- terra::rast(countryRaster)
+  countrySpatRaster <-
+    terra::rast(downloadWorldPopData(countryCodeISO3C,
+                                     if (!is.null(folder)) folder))
+  ## MAYBE TODO: replacing NAs with zeros has a performance penalty throughout
+  ## the application, but ensures that the "algorithm" is closer to what it was
+  ## before. It is worthwhile attempting to produce the same results without
+  ## replacing NAs.
   replace(countrySpatRaster, is.na(countrySpatRaster), 0) %>%
-    `names<-`("Susceptible")
+    `names<-`("Population")
 }
 
 ##' Read an RDS file from the GADM folder for a given country's subregion.
@@ -230,14 +229,8 @@ getSVEIRD.SpatRaster <- function(subregions, population, aggregationFactor = NUL
   ## clearer plots without values outside the bounds of the borders of the
   ## spatial region of the geographical region represented in the raster.
   empty <- terra::init(population, fun = NA)
-  ## MAYBE FIXME: why am I not using the reclassifyNegatives function here?
-  c(terra::classify(population, cbind(-Inf, 0, 0), right = FALSE, include.lowest = FALSE),
-    rep(empty, 5)) %>%
-    "names<-"(c("Susceptible",
-                "Vaccinated",
-                "Exposed",
-                "Infected",
-                "Recovered",
+  c(reclassifyBelowUpperBound(population, upper = 0), rep(empty, 5)) %>%
+    "names<-"(c("Susceptible", "Vaccinated", "Exposed", "Infected", "Recovered",
                 "Dead"))
 }
 
@@ -565,14 +558,17 @@ linearInterpolationOperator <- function(layers,
 }
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
-##' @details TODO: write the details about the implementation of this function.
-##' @title Create a Q-matrix
+##' @title Create a Forecast Error Covariance Matrix
 ##' @param layers The SpatRaster object with SVEIRD compartment layers, and a
 ##'   layer classifying habitation. Created with the getSVEIRD.SpatRaster
 ##'   function.
-##' @param variableCovarianceFunction TODO
-##' @param Q.backgroundErrorStandardDeviatio TODO
-##' @param Q.characteristicCorrelationLength TODO
+##' @param variableCovarianceFunction a covariance function used to determine
+##'   the covariance between two variables.
+##' @param forecastError.cov.sdBackground The "background" standard deviation of
+##'   the covariances of the forecast covariance error matrix.
+##' @param forecastError.cor.length "correlation length (i.e. the average size
+##'   of the fluctuations)," as stated by J. Murray on the Physics
+##'   StackExchange, <https://physics.stackexchange.com/a/671317>.
 ##' @param neighbourhood TODO
 ##' @param compartmentsReported TODO
 ##' @returns TODO
@@ -603,80 +599,80 @@ linearInterpolationOperator <- function(layers,
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 10)
-##' Ituri.Q.forecastErrorCov <- Q.forecastErrorCov(layers, "DBD", 2, 0.8, 4, 2)
-Q.forecastErrorCov <- function(layers,
-                               variableCovarianceFunction,
-                               Q.backgroundErrorStandardDeviation,
-                               Q.characteristicCorrelationLength,
-                               neighbourhood,
-                               compartmentsReported = 2) {
-  ncols <- terra::ncol(layers)
-  numberOfCells <- terra::ncell(layers)
-  Q <- matrix(0, numberOfCells, numberOfCells) # (rows * columns)^2 sparse
-  rows <- rep(1:terra::nrow(layers), each = ncols) # 111 ... 222 ... 333
-  cols <- rep(1:ncols, times = terra::nrow(layers)) # 123 ... 123 ... 123
-  point.a <- matrix(rep(rows, length(rows)), nrow = numberOfCells, byrow = TRUE)
-  point.b <- matrix(rep(cols, length(cols)), nrow = numberOfCells, byrow = TRUE)
-  point.c <- Matrix::t(point.a)
-  point.d <- Matrix::t(point.b)
-  ## This appears to the the Balgovind form of the correlation function C, as
-  ## mentioned by Ashok here:
-  ## https://codereview.stackexchange.com/questions/224536. The above lines
-  ## appear to be those shared by user "minem":
-  ## https://codereview.stackexchange.com/a/224901.
-  d <- sqrt((point.a - point.c)^2 + (point.b - point.d)^2)
+##' Ituri.forecastError.cov <- forecastError.cov(layers, "DBD", 2, 0.8, 4, 2)
+forecastError.cov <- function(layers,
+                              variableCovarianceFunction,
+                              forecastError.cov.sdBackground,
+                              forecastError.cor.length,
+                              neighbourhood,
+                              compartmentsReported = 2) {
+  validFunctions <- c("DBD", "Balgovind", "Exponential", "Guassian", "Spherical")
+  if (!any(variableCovarianceFunction == validFunctions))
+    stop(sprintf("%s is not a valid variable covariance function.", variableCovarianceFunction))
+
+  columns <- terra::ncol(layers)
+  rows <- terra::nrow(layers)
+  block <- \(n) t(outer(seq(n), seq(n), "-"))
+  ## I believe this is the called "the Balgovind form of the correlation
+  ## [decay?] function C", as mentioned by Ashok here:
+  ## https://codereview.stackexchange.com/questions/224536. Regardless of what
+  ## it is called, this is a very effeciently implementation of it, with much
+  ## less arithmetic than what was occurring before. It should be an order of
+  ## magnitude faster, at least. MAYBE: "isotopic decaying correlation"?
+  decay <- sqrt((matrix(1, columns, columns) %x% block(rows))^2 +
+                (matrix(1, rows, rows) %x% block(columns))^2)
+
+  ## Assign to cells of the sparse matrix where the decay function has a value
+  ## less than neighbourhood.
+  forecastErrorCovariance <- matrix(0, terra::ncell(layers), terra::ncell(layers))
 
   varCov.fun <-
     switch(variableCovarianceFunction,
            DBD = function() {
-             Q.backgroundErrorStandardDeviation *
-               Q.characteristicCorrelationLength^d
+             forecastError.cov.sdBackground *
+               forecastError.cor.length^decay
            },
-           ## NOTE: isotropic Balgovind form of Q; the Balgovind model
-           ## parameterizes the isotopic decaying correlation.
+           ## NOTE: isotropic Balgovind form of forecastErrorCovariance; the
+           ## Balgovind model parameterizes the isotopic decaying correlation.
            Balgovind = function() {
-             Q.backgroundErrorStandardDeviation *
-               (1 + (d / Q.characteristicCorrelationLength)) *
-               exp(-d / Q.characteristicCorrelationLength)
+             forecastError.cov.sdBackground *
+               (1 + (decay / forecastError.cor.length)) *
+               exp(-decay / forecastError.cor.length)
            },
            Exponential = function() {
-             Q.backgroundErrorStandardDeviation *
-               exp(-d / Q.characteristicCorrelationLength)
+             forecastError.cov.sdBackground *
+               exp(-decay / forecastError.cor.length)
            },
            Guassian = function() {
-             Q.backgroundErrorStandardDeviation *
-               exp(-d^2 / 2 * Q.characteristicCorrelationLength^2)
+             forecastError.cov.sdBackground *
+               exp(-decay^2 / 2 * forecastError.cor.length^2)
            },
            Spherical = function() {
-             ## NOTE: the Q.characteristicCorrelationLength actually refers to
+             ## NOTE: the forecastError.cor.length actually refers to
              ## the radius of the spherical variance-covariance function.
-             varMatrix <- Q.backgroundErrorStandardDeviation *
-               ((3 * d) / (2 * Q.characteristicCorrelationLength) -
-                d^3 / (2 * Q.characteristicCorrelationLength^3))
-             varMatrix[d >= Q.characteristicCorrelationLength] <- 0
+             varMatrix <- forecastError.cov.sdBackground *
+               ((3 * decay) / (2 * forecastError.cor.length) -
+                decay^3 / (2 * forecastError.cor.length^3))
+             varMatrix[decay >= forecastError.cor.length] <- 0
              varMatrix
-           },
-           stop(r"[Provided name of variableCovarianceFunction is invalid.
-Valid function names are:
- - DBD
- - Balgovind
- - Exponential
- - Gaussian
- - Spherical]"))
+           })
 
-  ## Assign to cells of the sparse matrix where the decay function has a value
-  ## less than neighbourhood.
-  Q[d < neighbourhood] <- varCov.fun()[d < neighbourhood]
-  diag(Q) <- ifelse(Matrix::diag(Q) == 0, Q.backgroundErrorStandardDeviation, Matrix::diag(Q))
+  forecastErrorCovariance[decay < neighbourhood] <-
+    varCov.fun()[decay < neighbourhood]
+  diag(forecastErrorCovariance) <-
+    ifelse(Matrix::diag(forecastErrorCovariance) == 0,
+           forecastError.cov.sdBackground,
+           Matrix::diag(forecastErrorCovariance))
 
-  if (compartmentsReported == 2) Q <- Matrix::bdiag(Q, Q)
+  if (compartmentsReported == 2)
+    forecastErrorCovariance <-
+      Matrix::bdiag(forecastErrorCovariance, forecastErrorCovariance)
 
-  return(Q)
+  return(forecastErrorCovariance)
 }
 
 ##' @description Run a SVEIRD compartmental model of an epidemic, optionally
 ##'   using Bayesian data assimilation.
-##' @details TODO: DETAILS of the function.
 ##' @title SVEIRD compartmental model with optional Bayesian data assimilation
 ##' @param psi.diagonal TODO
 ##' @param layers The SpatRaster object with SVEIRD compartment layers, and a
@@ -771,10 +767,10 @@ Valid function names are:
 ##'   }
 ##' @param deathData Data of the same format as incidenceData, but observations
 ##'   represent deaths, not infections.
-##' @param variableCovarianceFunction Passed directly to [Q.forecastErrorCov()] to generate a
-##'   Q matrix.
-##' @param Q.backgroundErrorStandardDeviation TODO
-##' @param Q.characteristicCorrelationLength TODO
+##' @param variableCovarianceFunction Passed directly to [forecastError.cov()] to generate a
+##'   forecastErrorCovariance matrix.
+##' @param forecastError.cov.sdBackground the "background" or default amount of error, in standard deviations.
+##' @param forecastError.cor.length TODO
 ##' @param neighbourhood.Bayes The neighbourhood used in Bayesian data
 ##'   assimilation; this is different from that used in the casting of seed data
 ##'   about a neighbourhood of cells.
@@ -841,8 +837,8 @@ Valid function names are:
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   variableCovarianceFunction = "DBD",
 ##'   ## Special parameters
-##'   Q.backgroundErrorStandardDeviation = 0.55,
-##'   Q.characteristicCorrelationLength = 6.75e-1,
+##'   forecastError.cov.sdBackground = 0.55,
+##'   forecastError.cor.length = 6.75e-1,
 ##'   neighbourhood.Bayes = 3,
 ##'   psi.diagonal = 1e-3,
 ##'   callback = list(before = list(fun = cli::cli_progress_bar,
@@ -878,8 +874,8 @@ Valid function names are:
 ##'   healthZoneCoordinates = healthZonesCongo,
 ##'   variableCovarianceFunction = "DBD",
 ##'   ## Special parameters
-##'   Q.backgroundErrorStandardDeviation = 0.55,
-##'   Q.characteristicCorrelationLength = 6.75e-1,
+##'   forecastError.cov.sdBackground = 0.55,
+##'   forecastError.cor.length = 6.75e-1,
 ##'   neighbourhood.Bayes = 3,
 ##'   psi.diagonal = 1e-3
 ##' )
@@ -912,8 +908,8 @@ SVEIRD.BayesianDataAssimilation <-
            variableCovarianceFunction,
 
            ## Special parameters
-           Q.backgroundErrorStandardDeviation,
-           Q.characteristicCorrelationLength,
+           forecastError.cov.sdBackground,
+           forecastError.cor.length,
            neighbourhood.Bayes,
            psi.diagonal,
 
@@ -953,8 +949,8 @@ SVEIRD.BayesianDataAssimilation <-
                                       healthZoneCoordinates,
                                       compartmentsReported,
                                       variableCovarianceFunction,
-                                      Q.backgroundErrorStandardDeviation,
-                                      Q.characteristicCorrelationLength,
+                                      forecastError.cov.sdBackground,
+                                      forecastError.cor.length,
                                       neighbourhood.Bayes)
       H <- linearInterpolationMatrix <- matrices.Bayes$H
       HQHt <- matrices.Bayes$HQHt
@@ -968,11 +964,6 @@ SVEIRD.BayesianDataAssimilation <-
     ## the SpatRaster representing a different timestep. Search for "timestep"
     ## in the terra documentation.
     layers.timeseries <- vector(mode = "list", length = n.days)
-
-    ## Spit is a "play on words" in SpatRaster
-    reclassifyNegatives <- function(spit) {
-      terra::classify(spit, cbind(-Inf, 1, 0), right = FALSE, include.lowest = FALSE)
-    }
 
     ## MAYBE replace this type checking with lobstr:: namespaced functions?
     if (is.list(callback) && hasName(callback, "during") && is.list(callback$during)) {
@@ -1007,7 +998,7 @@ SVEIRD.BayesianDataAssimilation <-
       summaryTable[today, 6] <- round(terra::global(layers$Recovered,   sum, na.rm = TRUE))
       summaryTable[today, 7] <- round(terra::global(layers$Dead,        sum, na.rm = TRUE))
 
-      newVaccinated <- alpha * reclassifyNegatives(layers$Susceptible)
+      newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
       ## MAYBE: substituting NaNs may produce an plane, whereas we want
       ## NaN where there is no spatial data, really; it'll make the plot of the
@@ -1046,15 +1037,15 @@ SVEIRD.BayesianDataAssimilation <-
       newExposed <- terra::mask(newExposed, indices, maskvalues = TRUE, updatevalue = 0)
       dailyExposed <- sum(newExposed)
 
-      newInfected <- reclassifyNegatives(gamma * sum(c(layers$Exposed, newExposed)))
+      newInfected <- reclassifyBelowUpperBound(gamma * sum(c(layers$Exposed, newExposed)), upper = 1)
       dailyInfected <- sum(newInfected)
 
       ## Some infectious people are going to either recover or die
-      infectious <- reclassifyNegatives(sum(c(layers$Infected, newInfected)))
+      infectious <- reclassifyBelowUpperBound(sum(c(layers$Infected, newInfected)), upper = 1)
       newRecovered <- sigma * infectious
       dailyRecovered <- sum(newRecovered)
 
-      newDead <- reclassifyNegatives(delta * infectious)
+      newDead <- reclassifyBelowUpperBound(delta * infectious, upper = 1)
       dailyDead <- sum(newDead)
 
       layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated))
@@ -1112,8 +1103,8 @@ SVEIRD.BayesianDataAssimilation <-
 ##'   corresponds only to infection, while two compartments corresponds to
 ##'   exposure and infection.
 ##' @param variableCovarianceFunction a function to calculate the error covariance, returned by Q.forecastErrorCov.
-##' @param Q.backgroundErrorStandardDeviation the "background" or default amount of error, in standard deviations.
-##' @param Q.characteristicCorrelationLength TODO
+##' @param forecastError.cov.sdBackground the "background" or default amount of error, in standard deviations.
+##' @param forecastError.cor.length TODO
 ##' @param neighbourhood TODO
 ##' @returns the HQHt matrix
 ##' @author Bryce Carson
@@ -1122,8 +1113,8 @@ setupBayesianDataAssimilation <-
            healthZoneCoordinates,
            compartmentsReported,
            variableCovarianceFunction,
-           Q.backgroundErrorStandardDeviation,
-           Q.characteristicCorrelationLength,
+           forecastError.cov.sdBackground,
+           forecastError.cor.length,
            neighbourhood) {
     ## Generate the linear interpolation operator matrix (function works for
     ## two compartments, at most).
@@ -1132,27 +1123,27 @@ setupBayesianDataAssimilation <-
                                   healthZoneCoordinates,
                                   compartmentsReported)
 
-    ## NOTE: Q and H are both block diagonal, sparse matrices (but not of
+    ## NOTE: forecastErrorCovariance and H are both block diagonal, sparse matrices (but not of
     ## class sparseMatrix:
     ## <https://stat.ethz.ch/R-manual/R-patched/library/Matrix/html/sparseMatrix-class.html>).
     ## NOTE: create the model error covariance matrix, which, given we are
     ## using an ensemble-type data assimilation process, is time invariant.
     ## Immediately it is used to calculate QHt, and otherwise is unused.
-    Q <- forecastErrorCovarianceMatrix <-
-      Q.forecastErrorCov(layers,
-                         variableCovarianceFunction,
-                         Q.backgroundErrorStandardDeviation,
-                         Q.characteristicCorrelationLength,
-                         neighbourhood,
-                         compartmentsReported)
-    QHt <- Q %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
+    forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
+      forecastError.cov(layers,
+                              variableCovarianceFunction,
+                              forecastError.cov.sdBackground,
+                              forecastError.cor.length,
+                              neighbourhood,
+                              compartmentsReported)
+    QHt <- forecastErrorCovariance %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
     HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
 
     ## NOTE: this is based on old, dead code from the previous implementation,
     ## and also based on commented code from a StackOverflow question Ashok
     ## asked in July 2019: https://codereview.stackexchange.com/q/224536. It
     ## probably isn't necessary to retain, but it's here. Ashok can make a
-    ## decision about its usage later. stopifnot(sum(eigen(Q)$values) ==
+    ## decision about its usage later. stopifnot(sum(eigen(forecastErrorCovariance)$values) ==
     ## ncell(layers))
 
     return(list(QHt = QHt, HQHt = HQHt, H = H))
@@ -1406,3 +1397,18 @@ castSeedDataQueensNeighbourhood <-
 
     return(layers)
   }
+
+##' Change all numbers in a raster which are less than some upper value to zero.
+##'
+##' With an upper of zero, negatives will be reclassified to zero, whilst with
+##' an upper bound of some positive number, any number less than that will be
+##' reclassified to zero.
+##' @title Reclassify Below Upper Bound
+##' @param spit a SpatRaster to reclassify
+##' @param upper the upper bound, not included in the range of values classified
+##' @returns the reclassified SpatRaster
+##' @author Bryce Carson
+reclassifyBelowUpperBound <- function(spit, upper) {
+  ## Spit is a play on the first word in SpatRaster
+  terra::classify(spit, cbind(-Inf, upper, 0), right = FALSE, include.lowest = FALSE)
+}

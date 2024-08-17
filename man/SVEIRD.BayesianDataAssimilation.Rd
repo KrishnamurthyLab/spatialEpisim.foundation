@@ -24,8 +24,8 @@ SVEIRD.BayesianDataAssimilation(
   dataAssimilationEnabled = FALSE,
   healthZoneCoordinates,
   variableCovarianceFunction,
-  Q.backgroundErrorStandardDeviation,
-  Q.characteristicCorrelationLength,
+  forecastError.cov.sdBackground,
+  forecastError.cor.length,
   neighbourhood.Bayes,
   psi.diagonal,
   callback = `{`
@@ -142,12 +142,12 @@ compartmental model data at the end of the simmulation.)
     Tchomia       1.4412      30.4845
   }}
 
-\item{variableCovarianceFunction}{Passed directly to \code{\link[=Q.forecastErrorCov]{Q.forecastErrorCov()}} to generate a
-Q matrix.}
+\item{variableCovarianceFunction}{Passed directly to \code{\link[=forecastError.cov]{forecastError.cov()}} to generate a
+forecastErrorCovariance matrix.}
 
-\item{Q.backgroundErrorStandardDeviation}{TODO}
+\item{forecastError.cov.sdBackground}{the "background" or default amount of error, in standard deviations.}
 
-\item{Q.characteristicCorrelationLength}{TODO}
+\item{forecastError.cor.length}{TODO}
 
 \item{neighbourhood.Bayes}{The neighbourhood used in Bayesian data
 assimilation; this is different from that used in the casting of seed data
@@ -171,9 +171,6 @@ compartment values over time, the daily values, and cumulative values.
 \description{
 Run a SVEIRD compartmental model of an epidemic, optionally
 using Bayesian data assimilation.
-}
-\details{
-TODO: DETAILS of the function.
 }
 \examples{
 subregionsSpatVector <- terra::vect(
@@ -224,8 +221,8 @@ SVEIRD.BayesianDataAssimilation(
   healthZoneCoordinates = healthZonesCongo,
   variableCovarianceFunction = "DBD",
   ## Special parameters
-  Q.backgroundErrorStandardDeviation = 0.55,
-  Q.characteristicCorrelationLength = 6.75e-1,
+  forecastError.cov.sdBackground = 0.55,
+  forecastError.cor.length = 6.75e-1,
   neighbourhood.Bayes = 3,
   psi.diagonal = 1e-3,
   callback = list(before = list(fun = cli::cli_progress_bar,
@@ -261,8 +258,8 @@ SVEIRD.BayesianDataAssimilation(
   healthZoneCoordinates = healthZonesCongo,
   variableCovarianceFunction = "DBD",
   ## Special parameters
-  Q.backgroundErrorStandardDeviation = 0.55,
-  Q.characteristicCorrelationLength = 6.75e-1,
+  forecastError.cov.sdBackground = 0.55,
+  forecastError.cor.length = 6.75e-1,
   neighbourhood.Bayes = 3,
   psi.diagonal = 1e-3
 )

@@ -2,7 +2,7 @@
 % Please edit documentation in R/SVEIRD.BayesianDataAssimilation.R
 \name{getCountryPopulation.SpatRaster}
 \alias{getCountryPopulation.SpatRaster}
-\title{Create a Susceptible-component RasterLayer}
+\title{Retrieve a population count SpatRaster}
 \usage{
 getCountryPopulation.SpatRaster(countryCodeISO3C, folder = NULL)
 }
@@ -13,12 +13,12 @@ country.}
 \item{folder}{Passed on to method downloadWorldPopData}
 }
 \value{
-A SpatRaster of WorldPop population count data with the name
-Susceptible, with all NAs replaced by zeros.
+A SpatRaster of WorldPop population count data with the layer name
+"Population", with all NAs replaced by zeros.
 }
 \description{
-Create a named RasterLayer object useful for spatiotemporal epidemic
-compartmental modelling.
+Retrieve a SpatRaster useful for spatiotemporal epidemic compartmental
+modelling.
 }
 \examples{
 getCountryPopulation.SpatRaster("COD")

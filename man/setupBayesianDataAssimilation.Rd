@@ -9,8 +9,8 @@ setupBayesianDataAssimilation(
   healthZoneCoordinates,
   compartmentsReported,
   variableCovarianceFunction,
-  Q.backgroundErrorStandardDeviation,
-  Q.characteristicCorrelationLength,
+  forecastError.cov.sdBackground,
+  forecastError.cor.length,
   neighbourhood
 )
 }
@@ -29,9 +29,9 @@ exposure and infection.}
 
 \item{variableCovarianceFunction}{a function to calculate the error covariance, returned by Q.forecastErrorCov.}
 
-\item{Q.backgroundErrorStandardDeviation}{the "background" or default amount of error, in standard deviations.}
+\item{forecastError.cov.sdBackground}{the "background" or default amount of error, in standard deviations.}
 
-\item{Q.characteristicCorrelationLength}{TODO}
+\item{forecastError.cor.length}{TODO}
 
 \item{neighbourhood}{TODO}
 }

@@ -23,7 +23,7 @@ test_that("Population SpatRaster is as described", {
   CongoSpatRaster <- getCountryPopulation.SpatRaster("COD")
 
   expect_true(is(CongoSpatRaster, "SpatRaster"))
-  expect_named(CongoSpatRaster, "Susceptible")
+  expect_named(CongoSpatRaster, "Population")
 })
 
 ## test_that("Average Euclidean distance is correct", {
@@ -65,7 +65,7 @@ test_that("Casting seed data in a Queen's neighbourhood of a given order works c
   expect_no_error(castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 1))
 })
 
-test_that("Population remains the same after masking and aggregation", {
+test_that("Population remains the same after cropping and aggregation", {
   subregionsSpatVector <-
     system.file("extdata",
                 "subregionsSpatVector",
