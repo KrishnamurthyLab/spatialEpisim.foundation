@@ -6,7 +6,6 @@
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/authors.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/index.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/Congo.EbolaIncidence.html</loc></url>
-<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/Q.forecastErrorCov.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/SVEIRD.BayesianDataAssimilation.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/assimilateData.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/averageEuclideanDistance.html</loc></url>
@@ -14,6 +13,7 @@
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/classify.binary.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/dot-onLoad.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/downloadWorldPopData.html</loc></url>
+<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/forecastError.cov.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/getCountryPopulation.SpatRaster.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/getCountrySubregions.SpatVector.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/getSVEIRD.SpatRaster.html</loc></url>
@@ -22,6 +22,7 @@
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/initialInfections.fourCities.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/linearInterpolationOperator.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/lvl1AdminBorders.html</loc></url>
+<url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/reclassifyBelowUpperBound.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/setupBayesianDataAssimilation.html</loc></url>
 <url><loc>https://krishnamurthylab.github.io/spatialEpisim.foundation/reference/spatialEpisim.foundation-package.html</loc></url>
 </urlset>
