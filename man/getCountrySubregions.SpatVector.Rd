@@ -2,33 +2,32 @@
 % Please edit documentation in R/SVEIRD.BayesianDataAssimilation.R
 \name{getCountrySubregions.SpatVector}
 \alias{getCountrySubregions.SpatVector}
-\title{Get a country's GADM verison 3.6 raster}
+\title{Get a country's GADM SpatVector, from GADM verison 3.6}
 \usage{
-getCountrySubregions.SpatVector(
-  countryCodeISO3C = "COD",
-  level1Region = c("Nord-Kivu", "Ituri"),
-  folder
-)
+getCountrySubregions.SpatVector(countryCodeISO3C = "COD", level1Region, folder)
 }
 \arguments{
-\item{countryCodeISO3C}{The uppercase ISO three character code a recognized
-country.}
+\item{countryCodeISO3C}{The uppercase ISO three character code of a
+recognized country.}
 
-\item{level1Region}{The subregions of the country to crop to}
+\item{level1Region}{Subregions of the country to limit the extent of the
+SpatVector to.}
 
 \item{folder}{The folder which should be searched for the GADM data, passed
 on to lvl1AdminBorders.}
 }
 \value{
-SpatVector for the specificed country.
+SpatVector for the specificed country, optionally cropped to the
+provinces/states specified in the \code{level1Region} argument.
 }
 \description{
-Read an RDS file from the GADM folder for a given country's subregion.
+Acquire a SpatVector for a given country, optionally limited to subregion(s) thereof.
 }
 \examples{
 library(geodata)
 geodata_path_backup <- geodata_path()
 options(geodata_default_path = getOption("spatialEpisim.foundation.datapath"))
+getCountrySubregions.SpatVector("COD")
 getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri"))
 getCountrySubregions.SpatVector("CZE", "Prague")
 getCountrySubregions.SpatVector("NGA", "Kwara")

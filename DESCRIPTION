@@ -1,7 +1,7 @@
 Package: spatialEpisim.foundation
 Title: Spatial, Compartmental Epidemic Simulations with Exposure,
     Vaccination, and Bayesian Data Assimilation for 'spatialEpisim'
-Version: 0.0.0.9001
+Version: 0.0.0.9002
 Authors@R: c(
     person(given = "Bryce", family = "Carson", email = "bcars268@mtroyal.ca", role = c("aut"),
            comment = c(ORCID = "0000-0002-1362-2998")),

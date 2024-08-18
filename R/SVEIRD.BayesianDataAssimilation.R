@@ -74,49 +74,6 @@ downloadWorldPopData <- function(countryCodeISO3C, folder = getOption("spatialEp
             basename(urlPath))
 }
 
-##' Returns a [terra::SpatVector] for the requested country on demand, either
-##' retrieving the data from disk if it has been downloaded before, or
-##' downloading the SpatVector to disk at the location determined by
-##' [geodata::geodata_path()].
-##'
-##' The level one boundaries are the least granular (geographically largest)
-##' administrative boundaries that countries create to subdivide themselves.
-##'
-##' The default resolution is one kilometer, meaning points in the vector are no
-##' closer to each other than one kilometer, therefore details smaller than one
-##' kilometer cannot be differentiated using this data.
-##' @title Retrieve a SpatRaster of level 1 boundaries from local or remote disk
-##' @param countryCodeISO3C The uppercase ISO three character code a recognized
-##'   country.
-##' @param folder The path where GADM data should be found or stored; passed on
-##'   to geodata::gadma.
-##' @returns SpatVector
-##' @author Bryce Carson
-##' @export
-##' @examples
-##' library(geodata)
-##' geodata_path_backup <- geodata_path()
-##' options(geodata_default_path = getOption("spatialEpisim.foundation.datapath"))
-##' lvl1AdminBorders("COD")
-##' options(geodata_default_path = geodata_path_backup)
-##'
-##' \dontrun{
-##' ## It's recommended to set geodata_default_path in your .Rprofile rather
-##' ## than explicitly provide the path.
-##' lvl1AdminBorders("COD", file.path("data", "gadm"))
-##' }
-lvl1AdminBorders <- function(countryCodeISO3C, folder) {
-  if (missing(folder)) folder <- geodata::geodata_path()
-  stopifnot(dir.exists(folder))
-  geodata::gadm(
-    country = countryCodeISO3C,
-    level = 1,
-    path = folder,
-    version = "3.6",
-    resolution = 1
-  )
-}
-
 ##' Retrieve a SpatRaster useful for spatiotemporal epidemic compartmental
 ##' modelling.
 ##' @title Retrieve a population count SpatRaster
@@ -143,31 +100,42 @@ getCountryPopulation.SpatRaster <- function(countryCodeISO3C, folder = NULL) {
     `names<-`("Population")
 }
 
-##' Read an RDS file from the GADM folder for a given country's subregion.
+##' Acquire a SpatVector for a given country, optionally limited to subregion(s) thereof.
 ##'
-##' @title Get a country's GADM verison 3.6 raster
-##' @param countryCodeISO3C The uppercase ISO three character code a recognized
-##'   country.
-##' @param level1Region The subregions of the country to crop to
+##' @title Get a country's GADM SpatVector, from GADM verison 3.6
+##' @param countryCodeISO3C The uppercase ISO three character code of a
+##'   recognized country.
+##' @param level1Region Subregions of the country to limit the extent of the
+##'   SpatVector to.
 ##' @param folder The folder which should be searched for the GADM data, passed
 ##'   on to lvl1AdminBorders.
-##' @returns SpatVector for the specificed country.
+##' @returns SpatVector for the specificed country, optionally cropped to the
+##'   provinces/states specified in the `level1Region` argument.
 ##' @author Bryce Carson
 ##' @export
 ##' @examples
 ##' library(geodata)
 ##' geodata_path_backup <- geodata_path()
 ##' options(geodata_default_path = getOption("spatialEpisim.foundation.datapath"))
+##' getCountrySubregions.SpatVector("COD")
 ##' getCountrySubregions.SpatVector("COD", c("Nord-Kivu", "Ituri"))
 ##' getCountrySubregions.SpatVector("CZE", "Prague")
 ##' getCountrySubregions.SpatVector("NGA", "Kwara")
 ##' options(geodata_default_path = geodata_path_backup)
 getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
-                                            level1Region = c("Nord-Kivu", "Ituri"),
+                                            level1Region,
                                             folder) {
   stopifnot(countryCodeISO3C %in% countrycode::codelist$iso3c)
-  lvl1AdminBorders(countryCodeISO3C, folder) %>%
-    subset(.$NAME_1 %in% level1Region)
+
+  if (missing(folder)) folder <- geodata::geodata_path()
+  stopifnot(dir.exists(folder))
+
+  countryVector <- geodata::gadm(countryCodeISO3C, path = folder, version = "3.6")
+
+  if (!missing(level1Region))
+    countryVector <- terra::subset(countryVector, countryVector$NAME_1 == level1Region)
+
+  return(countryVector)
 }
 
 ##' @title Create a SpatRaster of SVEIRD model compartment raster data
