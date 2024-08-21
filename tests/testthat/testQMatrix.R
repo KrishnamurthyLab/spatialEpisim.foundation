@@ -47,7 +47,10 @@ originalCodeResults <- {
     url <- paste0("https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/", inputISO, "/", inputISOLower, "_ppp_2020_1km_Aggregated_UNadj.tif")
 
     tifFileName <- basename(url) # name of the .tif file
-    tifFolder <- "tif/" # .tif files should be stored in local tif/ folder
+
+    ## NOTE: this is modified so that the test works, but it's just providing a
+    ## different root than what was originally written.
+    tifFolder <- test_path("tif/") # .tif files should be stored in local tif/ folder
 
     if (!file.exists(paste0(tifFolder, tifFileName))) {
       download.file(url, paste0(tifFolder, tifFileName), mode = "wb")
@@ -114,7 +117,7 @@ originalCodeResults <- {
 
     gadmFileName <- paste0("gadm36_", inputISO, "_1_sp.rds") # name of the .rds file
 
-    gadmFolder <- "gadm/" # .rds files should be stored in local gadm/ folder
+    gadmFolder <- test_path("gadm/") # .rds files should be stored in local gadm/ folder
 
     # print(paste0(gadmFolder, gadmFileName))
 
@@ -475,7 +478,10 @@ newCodeResults <- {
   )
 }
 
-test_that("Forecast error covariance matrix, Q, is correct", {
-  ## Access oldCodeResults
-  ## Access newCodeResults
+test_that("Forecast error covariance (Q) matrix is correct", {
+  ## NOTE: the objects must be available and have the correct names for the test
+  ## to proceed. If either object doesn't have the correct names, then something
+  ## is obviously wrong.
+  expect_named(originalCodeResults, c("No.neighborhood", "Moore.neighborhood"))
+  expect_named(newCodeResults, c("No.neighborhood", "Moore.neighborhood"))
 })
