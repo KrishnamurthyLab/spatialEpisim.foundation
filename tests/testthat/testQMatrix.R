@@ -1,3 +1,10 @@
+############################################################################
+## TODO: the states_observable/compartmentsReported needs to be tested as ##
+## well; with one state oberved (one compartment reported) the resulting  ##
+## variance-covariance (Q) matrix is not a block matrix, while with two   ##
+## compartments reported it is a block matrix.                            ##
+############################################################################
+
 ## These variables are treated as constants to be used throughout the testing
 ## conducted in this file.
 COD <- "Democratic Republic of Congo"
@@ -16,6 +23,16 @@ variableCovarianceFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", 
 ## original code and the new code to allow a simpler but still useful
 ## comparison.
 originalCodeResults <- {
+#### FIXME: The following error occurs when the originalCodeResults compound
+#### expression is ran outside of yeOldeSpatialEpisim; I need to make the data
+#### which is expected to be available by this test available.
+### Error: [rast] file does not exist: tif/cod_ppp_2020_1km_Aggregated_UNadj.tif
+### In addition: Warning messages:
+### 1: In download.file(url, paste0(tifFolder, tifFileName), mode = "wb") :
+###   URL https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/COD/cod_ppp_2020_1km_Aggregated_UNadj.tif: cannot open destfile 'tif/cod_ppp_2020_1km_Aggregated_UNadj.tif', reason 'No such file or directory'
+### 2: In download.file(url, paste0(tifFolder, tifFileName), mode = "wb") :
+###   download had nonzero exit status
+### 3: tif/cod_ppp_2020_1km_Aggregated_UNadj.tif: No such file or directory (GDAL error 4)
   library(countrycode)
   library(terra)
 
@@ -396,6 +413,11 @@ originalCodeResults <- {
   )
 }
 
+## microbenchmark::microbenchmark of 100 runs of the following assignment of a
+## compound expression
+## milliseconds
+##       min       lq    mean   median       uq      max neval
+##  249.4146 274.3294 317.667 282.7732 311.4679 516.9176   100
 newCodeResults <- {
   subregionsSpatVector <- terra::vect(
     system.file(
