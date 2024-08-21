@@ -32,7 +32,6 @@ test_that("Population SpatRaster is as described", {
 ## })
 ## test_that("The Linear Interpolation Operator, H, is correct", {
 ## })
-## "Forecast error covariance matrix, Q, is correct"
 ## "SVEIRD compartmental epidemic model with Bayesian data assimilation is correct"
 ## "Setup of Bayesian data assimilation is correct"
 ## "Bayesian data assimilation works correctly"
