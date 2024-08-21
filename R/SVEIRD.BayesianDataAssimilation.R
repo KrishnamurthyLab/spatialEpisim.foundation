@@ -574,7 +574,7 @@ forecastError.cov <- function(layers,
                               forecastError.cor.length,
                               neighbourhood,
                               compartmentsReported = 2) {
-  validFunctions <- c("DBD", "Balgovind", "Exponential", "Guassian", "Spherical")
+  validFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", "Spherical")
   if (!any(variableCovarianceFunction == validFunctions))
     stop(sprintf("%s is not a valid variable covariance function.", variableCovarianceFunction))
 
@@ -611,7 +611,7 @@ forecastError.cov <- function(layers,
              forecastError.cov.sdBackground *
                exp(-decay / forecastError.cor.length)
            },
-           Guassian = function() {
+           Gaussian = function() {
              forecastError.cov.sdBackground *
                exp(-decay^2 / 2 * forecastError.cor.length^2)
            },
