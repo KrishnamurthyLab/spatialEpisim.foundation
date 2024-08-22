@@ -405,5 +405,7 @@ newCodeResults <- {
 test_that("Linear interpolation operator (LIO2) results are correct", {
   expect_named(originalCodeResults, c("oneStateObserved", "twoStateObserved"))
   expect_named(newCodeResults, c("oneStateObserved", "twoStateObserved"))
+
+  warning("The H matrices have been compared manually (see wiki on the package's GitHub), but here's an automated test for completeness.")
   expect_equal(originalCodeResults, newCodeResults)
 })
