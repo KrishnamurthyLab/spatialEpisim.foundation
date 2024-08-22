@@ -23,16 +23,6 @@ variableCovarianceFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", 
 ## original code and the new code to allow a simpler but still useful
 ## comparison.
 originalCodeResults <- {
-#### FIXME: The following error occurs when the originalCodeResults compound
-#### expression is ran outside of yeOldeSpatialEpisim; I need to make the data
-#### which is expected to be available by this test available.
-### Error: [rast] file does not exist: tif/cod_ppp_2020_1km_Aggregated_UNadj.tif
-### In addition: Warning messages:
-### 1: In download.file(url, paste0(tifFolder, tifFileName), mode = "wb") :
-###   URL https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/COD/cod_ppp_2020_1km_Aggregated_UNadj.tif: cannot open destfile 'tif/cod_ppp_2020_1km_Aggregated_UNadj.tif', reason 'No such file or directory'
-### 2: In download.file(url, paste0(tifFolder, tifFileName), mode = "wb") :
-###   download had nonzero exit status
-### 3: tif/cod_ppp_2020_1km_Aggregated_UNadj.tif: No such file or directory (GDAL error 4)
   library(countrycode)
   library(terra)
 
