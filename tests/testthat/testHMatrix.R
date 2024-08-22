@@ -1,16 +1,69 @@
-sitRepData <- test_path("observeddata", "Ebola_Health_Zones_LatLon_4zones.csv")
-rasterStack <- createRasterStack(
-  selectedCountry = "Democratic Republic of Congo",
-  rasterAgg = 10,
-  isCropped = TRUE,
-  level1Names = c("Ituri", "Nord-Kivu")
-)$rasterStack
+## NOTE: used in both the originalCodeResults and newCodeResults
+rasterAggregationFactor <- 5
 
 originalCodeResults <- {
   library(Matrix)
   library(raster)
   library(countrycode)
   library(terra)
+
+  createSusceptibleLayer <- function(selectedCountry, rasterAgg = 0) {
+    #----------------------------------------------------------------#
+    # Source 1: WorldPop UN-Adjusted Population Count GeoTIFF raster #
+    #----------------------------------------------------------------#
+
+    inputISO <- countrycode(selectedCountry, origin = "country.name", destination = "iso3c") # Converts country name to ISO Alpha
+    inputISOLower <- tolower(inputISO)
+
+    url <- paste0("https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/", inputISO, "/", inputISOLower, "_ppp_2020_1km_Aggregated_UNadj.tif")
+
+    tifFileName <- basename(url) # name of the .tif file
+
+    ## NOTE: this is modified so that the test works, but it's just providing a
+    ## different root than what was originally written.
+    tifFolder <- test_path("tif/") # .tif files should be stored in local tif/ folder
+
+    if (!file.exists(paste0(tifFolder, tifFileName))) {
+      download.file(url, paste0(tifFolder, tifFileName), mode = "wb")
+    }
+
+    WorldPop <- rast(paste0(tifFolder, tifFileName))
+
+    # Gives the five number summary
+    print(summary(values(WorldPop)))
+
+    # Number of cells that have an NA value
+    print(sum(is.na(values(WorldPop))))
+
+    # print(as.raster(WorldPop))
+
+    WorldPop <- replace(WorldPop, is.na(WorldPop), 0) # Delete this line for clear plot. Check!!!
+
+    # WorldPop <- terra::rast(paste0(tifFolder, tifFileName))
+    # Use the above line if fully switching over to terra R package completely
+    # Note: rasterBasePlot.R was developed with the terra::rast()
+    # Error in (function (classes, fdef, mtable) :
+    #             unable to find an inherited method for function ‘classify’ for signature ‘"RasterLayer"’
+
+    # print(WorldPop)
+    # print(nrow(WorldPop))
+    # print(ncol(WorldPop))
+    # print(ncell(WorldPop))
+    # print(res(WorldPop))
+    # print(ext(WorldPop))
+
+    if (rasterAgg == 0 || rasterAgg == 1) {
+      Aggregated <- WorldPop
+    } else {
+      Aggregated <- aggregate(WorldPop, fact = c(rasterAgg, rasterAgg), fun = sum, na.rm = TRUE)
+    }
+
+    # print(Susceptible)
+
+    returnList <- list("Susceptible" = WorldPop, "Aggregated" = Aggregated, "nRows" = nrow(WorldPop), "nCols" = ncol(WorldPop), "nCells" = ncell(WorldPop))
+
+    return(returnList)
+  }
 
   createRasterStack <- function(selectedCountry, rasterAgg, isCropped = F, level1Names = NULL, susceptibleLayer) {
     inputISO <- countrycode(selectedCountry, origin = "country.name", destination = "iso3c") # Converts country name to ISO Alpha
@@ -27,7 +80,7 @@ originalCodeResults <- {
 
     gadmFileName <- paste0("gadm36_", inputISO, "_1_sp.rds") # name of the .rds file
 
-    gadmFolder <- "gadm/" # .rds files should be stored in local gadm/ folder
+    gadmFolder <- test_path("gadm/") # .rds files should be stored in local gadm/ folder
 
     # message(paste0(gadmFolder, gadmFileName))
 
@@ -285,7 +338,17 @@ originalCodeResults <- {
     ))
   }
 
-  list(
+  COD <- "Democratic Republic of Congo"
+  sitRepData <- test_path("observeddata", "Ebola_Health_Zones_LatLon_4zones.csv")
+  rs <- createRasterStack(
+    selectedCountry = COD,
+    rasterAgg = rasterAggregationFactor,
+    isCropped = TRUE,
+    level1Names = c("Ituri", "Nord-Kivu"),
+    susceptibleLayer = createSusceptibleLayer(COD, rasterAgg = rasterAggregationFactor)
+  )$rasterStack
+
+  suppressMessages(list(
     oneStateObserved = generateLIO2(
       rs,
       sitRepData,
@@ -296,14 +359,51 @@ originalCodeResults <- {
       sitRepData,
       states_observable = 2
     )$Hmat
-  )
+  ))
 }
 
 newCodeResults <- {
+  subregionsSpatVector <- terra::vect(
+    system.file(
+      "extdata",
+      ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
+      "subregionsSpatVector",
+      package = "spatialEpisim.foundation",
+      mustWork = TRUE
+    )
+  )
+  susceptibleSpatRaster <- terra::rast(
+    system.file(
+      "extdata",
+      "susceptibleSpatRaster.tif", # Congo population
+      package = "spatialEpisim.foundation",
+      mustWork = TRUE
+    )
+  )
+  data("healthZonesCongo", package = "spatialEpisim.foundation")
 
+  sveirdLayers <- getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster, aggregationFactor = rasterAggregationFactor)
+
+  list(
+    oneStateObserved =
+      linearInterpolationOperator(
+        layers = sveirdLayers,
+        healthZoneCoordinates = healthZonesCongo,
+        neighbourhood.order = 0,
+        compartmentsReported = 1
+      ),
+    twoStateObserved =
+      linearInterpolationOperator(
+        layers = sveirdLayers,
+        healthZoneCoordinates = healthZonesCongo,
+        neighbourhood.order = 0,
+        compartmentsReported = 2
+      )
+  )
 }
 
 test_that("Linear interpolation operator (LIO2) results are correct", {
-  expect_named(originalCodeResults, paste0(c("one", "two"), "StateObserved"))
-  expect_named(newCodeResults, paste0(c("one", "two"), "StateObserved"))
+  expect_named(originalCodeResults, c("oneStateObserved", "twoStateObserved"))
+  expect_named(newCodeResults, c("oneStateObserved", "twoStateObserved"))
+  expect_equal(originalCodeResults, newCodeResults)
 })
