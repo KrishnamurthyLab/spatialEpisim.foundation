@@ -196,8 +196,8 @@ getSVEIRD.SpatRaster <- function(subregions, population, aggregationFactor = NUL
   ## rather than multiply many cells by zero to no effect; it also produces
   ## clearer plots without values outside the bounds of the borders of the
   ## spatial region of the geographical region represented in the raster.
-  empty <- terra::init(population, fun = NA)
-  c(reclassifyBelowUpperBound(population, upper = 0), rep(empty, 5)) %>%
+  zeroed <- terra::classify(population, cbind(0, Inf, 0))
+  c(reclassifyBelowUpperBound(population, upper = 0), rep(zeroed, 5)) %>%
     "names<-"(c("Susceptible", "Vaccinated", "Exposed", "Infected", "Recovered",
                 "Dead"))
 }
@@ -1320,8 +1320,7 @@ castSeedDataQueensNeighbourhood <-
   function(layers, seedData, neighbourhood.order) {
     ## This function works for higher orders, but we limit it to zeroth or first order.
     stopifnot(any(neighbourhood.order == c(0, 1)))
-    message(sprintf("Susceptible before seeding = %s",
-                    terra::global(layers$Susceptible, sum, na.rm = TRUE)))
+    sumBeforeSeeding <- sum(terra::global(layers, sum, na.rm = TRUE))
 
     ## NOTE: evenly spread the count of exposed and infected persons across a
     ## Chess Queen's neighbourhood of a given order; this value is assigned to
@@ -1355,20 +1354,15 @@ castSeedDataQueensNeighbourhood <-
       }
     }
 
-    ## FIXME: this simplistic calculation results in layers$Susceptible having
-    ## negative values, which is totally unrealistic!
-    layers$Susceptible <-
-      terra::lapp(layers,
-                  function(Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead) {
-                    Susceptible - Vaccinated - Exposed - Infected - Recovered - Dead
-                  },
-                  usenames = TRUE)
+    layers$Susceptible <- layers$Susceptible -
+      layers$Vaccinated -
+      layers$Exposed -
+      layers$Infected -
+      layers$Recovered -
+      layers$Dead
 
-    message(sprintf("Susceptible after seeding = %s",
-                    terra::global(layers$Susceptible, sum, na.rm = TRUE)))
-    stopifnot(terra::global(layers$Susceptible, sum, na.rm = TRUE) >= 0)
     stopifnot(terra::global(layers$Susceptible, min, na.rm = TRUE) >= 0)
-
+    stopifnot(sum(terra::global(layers, sum, na.rm = TRUE)) == sumBeforeSeeding)
     return(layers)
   }
 
