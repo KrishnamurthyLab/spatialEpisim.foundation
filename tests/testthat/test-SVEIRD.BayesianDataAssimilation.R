@@ -3,22 +3,9 @@ test_that("DRC WorldPop data is appropriate", {
 })
 
 test_that("Population SpatRaster is as described", {
-    subregionsSpatVector <-
-      system.file("extdata",
-                  "subregionsSpatVector",
-                  package = "spatialEpisim.foundation",
-                  mustWork = TRUE) %>%
-      terra::vect()
-    susceptibleSpatRaster <-
-      system.file("extdata",
-                  "susceptibleSpatRaster.tif",
-                  package = "spatialEpisim.foundation",
-                  mustWork = TRUE) %>%
-      terra::rast()
     layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                    susceptibleSpatRaster,
                                    aggregationFactor = 35)
-    data("initialInfections.fourCities")
 
   CongoSpatRaster <- getCountryPopulation.SpatRaster("COD")
 
@@ -37,22 +24,9 @@ test_that("Population SpatRaster is as described", {
 ## "Bayesian data assimilation works correctly"
 
 test_that("Casting seed data in a Queen's neighbourhood of a given order works correctly", {
-  subregionsSpatVector <-
-    system.file("extdata",
-                "subregionsSpatVector",
-                package = "spatialEpisim.foundation",
-                mustWork = TRUE) %>%
-    terra::vect()
-  susceptibleSpatRaster <-
-    system.file("extdata",
-                "susceptibleSpatRaster.tif",
-                package = "spatialEpisim.foundation",
-                mustWork = TRUE) %>%
-    terra::rast()
   layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                  susceptibleSpatRaster,
                                  aggregationFactor = 10)
-  data("initialInfections.fourCities")
   populationBeforeSeeding <- sum(terra::global(layers, "sum", na.rm = TRUE))
 
   ## neighbourhoods other than zero and one are prohibited.
