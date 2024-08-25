@@ -1100,11 +1100,11 @@ setupBayesianDataAssimilation <-
     ## Immediately it is used to calculate QHt, and otherwise is unused.
     forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
       forecastError.cov(layers,
-                              variableCovarianceFunction,
-                              forecastError.cov.sdBackground,
-                              forecastError.cor.length,
-                              neighbourhood,
-                              compartmentsReported)
+                        variableCovarianceFunction,
+                        forecastError.cov.sdBackground,
+                        forecastError.cor.length,
+                        neighbourhood,
+                        compartmentsReported)
     QHt <- forecastErrorCovariance %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
     HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
 
