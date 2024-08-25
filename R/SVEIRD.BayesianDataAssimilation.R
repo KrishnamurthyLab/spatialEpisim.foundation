@@ -1112,8 +1112,8 @@ setupBayesianDataAssimilation <-
     ## and also based on commented code from a StackOverflow question Ashok
     ## asked in July 2019: https://codereview.stackexchange.com/q/224536. It
     ## probably isn't necessary to retain, but it's here. Ashok can make a
-    ## decision about its usage later. stopifnot(sum(eigen(forecastErrorCovariance)$values) ==
-    ## ncell(layers))
+    ## decision about its usage later.
+    ## stopifnot(sum(eigen(forecastErrorCovariance)$values) == ncell(layers))
 
     return(list(QHt = QHt, HQHt = HQHt, H = H))
   }
