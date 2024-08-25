@@ -1220,7 +1220,7 @@ assimilateData <-
 
     ## NOTE: The gain matrix, the Kalman filter, determines how the
     ## observational data are assimilated.
-    KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi)
+    KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi) # NOTE: b in solve is an identity matrix.
     Posterior <- Prior + KalmanFilter %*% Innovation
     Posterior[Posterior < 0] <- 0
 
