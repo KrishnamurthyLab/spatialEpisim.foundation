@@ -1219,6 +1219,10 @@ assimilateData <-
     Psi[Psi < 1] <- psi.diagonal
     Psi <- diag(Psi)
 
+    ## TODO: remove this, it is for investigative purposes.
+    if (dim(HQHt) != dim(Psi))
+      message("HQHT + diag(incidenceData[TODAY, ]) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
+
     ## NOTE: The gain matrix, the Kalman filter, determines how the
     ## observational data are assimilated.
     KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi) # NOTE: b in solve is an identity matrix.
