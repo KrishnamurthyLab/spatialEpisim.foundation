@@ -468,7 +468,7 @@ linearInterpolationOperator <- function(layers,
   H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
 
   ## NOTE: these are the weightings used for the chess queen zeroth, first,
-  ## and second order neighbors. The zeroth order neighbor is the position of
+  ## and second order neighbours. The zeroth order neighbor is the position of
   ## the queen itself.
   neighbour.weights <-
     switch(neighbourhood.order + 1, # the first of ... applies to zero, etc.
