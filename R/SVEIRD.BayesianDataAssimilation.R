@@ -1105,6 +1105,7 @@ setupBayesianDataAssimilation <-
                         forecastError.cor.length,
                         neighbourhood,
                         compartmentsReported)
+    ## MAYBE FIXME: replace with Matrix::tcrossprod which is more efficient.
     QHt <- forecastErrorCovariance %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
     HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
 
@@ -1189,8 +1190,8 @@ setupBayesianDataAssimilation <-
 ##'     Tchomia       1.4412      30.4845
 ##'   }
 ##' @param psi.diagonal TODO
-##' @param QHt TODO
-##' @param HQHt TODO
+##' @param QHt the [tcrossprod] of the Q and H matrices.
+##' @param HQHt the product of the H matrix and QHt.
 ##' @returns a list of SpatRasters, the Infected and Exposed SpatRasters
 ##' @author Bryce Carson
 assimilateData <-
