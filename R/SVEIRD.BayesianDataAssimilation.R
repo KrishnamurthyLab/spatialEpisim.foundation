@@ -497,9 +497,10 @@ linearInterpolationOperator <- function(layers,
   ## testing with various input values. NOTE: this corresponds to the
   ## hand-written note I made after discussion with Ashok. He told me that the
   ## sum of all cells needs to be equivalent to one; the sum of all cells is
-  ## per-health zone, ergo the first condition checks that the sum of the
-  ## entire matrix (with nrow := health zones) is the same as the number of
-  ## health zones (because each should sum to one).
+  ## per-health zone, ergo the first condition checks that the sum of the entire
+  ## matrix (with nrow := health zones) is the same as the number of health
+  ## zones (because each should sum to one). NOTE: each row corresponds to one
+  ## of the neighourhoods pictures in the plots "ashok.png" or "me.png".
   stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
   stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
                                    ncol = ncol(layers),
