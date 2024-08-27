@@ -816,6 +816,7 @@ forecastError.cov <- function(layers,
 ##'                   after = cli::cli_progress_done)
 ##' )
 ##'
+##' simulation.days <- 532
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -825,7 +826,7 @@ forecastError.cov <- function(layers,
 ##'   delta = 2/36,
 ##'   lambda = 18,
 ##'   ## Model runtime
-##'   n.days = 31, ## a month
+##'   n.days = simulation.days,
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   neighbourhood.order = 1,
@@ -835,7 +836,7 @@ forecastError.cov <- function(layers,
 ##'   aggregationFactor = rasterAggregationFactor,
 ##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
-##'   incidenceData = head(Congo.EbolaIncidence, n = 2),
+##'   incidenceData = Congo.EbolaIncidence,
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = TRUE,
@@ -845,8 +846,7 @@ forecastError.cov <- function(layers,
 ##'   forecastError.cov.sdBackground = 0.55,
 ##'   forecastError.cor.length = 6.75e-1,
 ##'   neighbourhood.Bayes = 3,
-##'   psi.diagonal = 1e-3,
-##'   callback = function() message("Iterating...")
+##'   psi.diagonal = 1e-3
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters influencing differential equations
@@ -924,10 +924,26 @@ SVEIRD.BayesianDataAssimilation <-
     layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
 
     if (dataAssimilationEnabled) {
-      if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date))
-        stop("Not all data to be assimilated is within temporal bounds of simulation (dates of incidenceData exist outside of specified simulation dates).")
-      if (!missing(deathData) && !all(deathData$Date %in% summaryTable$Date))
-        stop("Not all data to be assimilated is within temporal bounds of simulation (dates of deathData exist outside of specified simulation dates).")
+      if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date)) {
+        stop(sprintf("Some of the incidence data to be assimilated exists outside of the temporal bounds of the simulation.\nfirst(incidenceData$Date)\t%s\t\tfirst(summaryTable$Date)\t%s\nlast(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n\nTry an earlier startDate argument, or increase the n.days argument.\n", dplyr::first(incidenceData$Date), dplyr::first(summaryTable$Date), dplyr::last(incidenceData$Date), dplyr::last(summaryTable$Date)))
+
+        ## TODO: improve the error messaging to be clearer, offering an exact
+        ## difference (in days) to the user; even better, adjust the startDate
+        ## or n.days automatically with a warning.
+        ## if (dplyr::first(incidenceData$Date) < dplyr::first(summaryTable$Date)) {
+        ## } else if (dplyr::last(incidenceData$Date) < dplyr::last(summaryTable$Date)) {
+        ## }
+      }
+      if (!missing(deathData) && !all(deathData$Date %in% summaryTable$Date)) {
+        stop(sprintf("Some of the death data to be assimilated exists outside of the temporal bounds of the simulation.\nfirst(deathData$Date)\t%s\t\tfirst(summaryTable$Date)\t%s\nlast(deathData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n\nTry an earlier startDate argument, or increase the n.days argument.\n", dplyr::first(deathData$Date), dplyr::first(summaryTable$Date), dplyr::last(deathData$Date), dplyr::last(summaryTable$Date)))
+
+        ## TODO: improve the error messaging to be clearer, offering an exact
+        ## difference (in days) to the user; even better, adjust the startDate
+        ## or n.days automatically with a warning.
+        ## if (dplyr::first(deathData$Date) < dplyr::first(summaryTable$Date)) {
+        ## } else if (dplyr::last(deathData$Date) < dplyr::last(summaryTable$Date)) {
+        ## }
+      }
 
       matrices.Bayes <-
         setupBayesianDataAssimilation(
@@ -946,6 +962,7 @@ SVEIRD.BayesianDataAssimilation <-
 
     layers.timeseries <- vector(mode = "list", length = n.days)
 
+    ## NOTE: execute the "before" callback.
     if (!missing(callback) && hasName(callback, "before")) {
       if (all(c("fun", "args") %in% names(callback$before))) {
         if (is.function(callback$before$fun) && is.list(callback$before$args))
@@ -957,10 +974,8 @@ SVEIRD.BayesianDataAssimilation <-
       }
     }
 
-    ## TODO: all of the calcualtions within this loop should be spatial
-    ## calcualtions on the SpatRasters, and no conversion to vector or matrix
-    ## should be performed unless absolutely necessary.
     for (today in seq(n.days)) {
+      ## NOTE: execute the "during" callback.
       if (!missing(callback)) {
         if (hasName(callback, "during")) {
           if (all(c("fun", "args") %in% names(callback$during))) {
@@ -1018,7 +1033,6 @@ SVEIRD.BayesianDataAssimilation <-
       ##                  byrow = TRUE)
       ## MAYBE use the following form instead; conversion to matrices and
       ## vectors may not be necessary; type coercion takes time.
-      ##
       growth <- beta * proportionSusceptible * transmissionLikelihoods
 
       ## TODO: stochasticity is not properly implemented yet; it was not fully
@@ -1066,6 +1080,7 @@ SVEIRD.BayesianDataAssimilation <-
       layers.timeseries[[today]] <- layers
     }
 
+    ## NOTE: execute the "after" callback.
     if (!missing(callback) && hasName(callback, "after")) {
       if (all(c("fun", "args") %in% names(callback$after))) {
         if (is.function(callback$after$fun) && is.list(callback$after$args))

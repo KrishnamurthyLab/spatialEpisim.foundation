@@ -225,6 +225,7 @@ SVEIRD.BayesianDataAssimilation(
                   after = cli::cli_progress_done)
 )
 
+simulation.days <- 532
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -234,7 +235,7 @@ SVEIRD.BayesianDataAssimilation(
   delta = 2/36,
   lambda = 18,
   ## Model runtime
-  n.days = 31, ## a month
+  n.days = simulation.days,
   ## Model data
   seedData = initialInfections.fourCities,
   neighbourhood.order = 1,
@@ -244,7 +245,7 @@ SVEIRD.BayesianDataAssimilation(
   aggregationFactor = rasterAggregationFactor,
   startDate = "2018-08-01",
   countryCodeISO3C = "COD",
-  incidenceData = head(Congo.EbolaIncidence, n = 2),
+  incidenceData = Congo.EbolaIncidence,
   ## Model options
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = TRUE,
@@ -254,8 +255,7 @@ SVEIRD.BayesianDataAssimilation(
   forecastError.cov.sdBackground = 0.55,
   forecastError.cor.length = 6.75e-1,
   neighbourhood.Bayes = 3,
-  psi.diagonal = 1e-3,
-  callback = function() message("Iterating...")
+  psi.diagonal = 1e-3
 )
 }
 \author{
