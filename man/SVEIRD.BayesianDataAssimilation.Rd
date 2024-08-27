@@ -28,7 +28,7 @@ SVEIRD.BayesianDataAssimilation(
   forecastError.cor.length,
   neighbourhood.Bayes,
   psi.diagonal,
-  callback = `{`
+  callback
 )
 }
 \arguments{
@@ -158,11 +158,11 @@ about a neighbourhood of cells.}
 \item{callback}{a callback function to run, with no arguments, which will be
 called every time the main loop of the simulation iterates, or a list of
 callback functions which run before, during, and after the loop, and which
-has following structure. For each component, if the component is a list it
-must have members fun and args, where fun is a function symbol and args is
-a list of named arguments to the function; if it is not a list, the
-component of the list (before, during, or after) must be a function. See
-the examples.}
+have the following structure. For each component, if the component is a
+list it must have members fun and args, where fun is a function symbol and
+args is a list of named arguments to the function; if it is not a list,
+the component of the list (before, during, or after) must be a function.
+See the examples.}
 }
 \value{
 a summaryTable dataframe for the simulation, showing changes in the
@@ -254,7 +254,8 @@ SVEIRD.BayesianDataAssimilation(
   forecastError.cov.sdBackground = 0.55,
   forecastError.cor.length = 6.75e-1,
   neighbourhood.Bayes = 3,
-  psi.diagonal = 1e-3
+  psi.diagonal = 1e-3,
+  callback = function() message("Iterating...")
 )
 }
 \author{
