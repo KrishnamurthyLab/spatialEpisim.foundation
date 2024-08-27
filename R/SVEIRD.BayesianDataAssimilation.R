@@ -1006,12 +1006,13 @@ SVEIRD.BayesianDataAssimilation <-
                      fun = "sum",
                      na.rm = TRUE)
 
-      ## FIXME: "missing value where TRUE/FALSE needed". The error only occurs
-      ## after many iterations of the loop and data assimilation have occurred.
-      ## Why it becomes invalid, without logical values produced, I'm unsure for
-      ## now. This will need to be resolved after other work is committed.
       uniqueInfectionLikelihoods <- length(unique(as.vector(transmissionLikelihoods)))
-      if (all(countInfected > 0, !(uniqueInfectionLikelihoods > 1)))
+      ## FIXME: eventually countInfected becomes NaN, which evaluates to TRUE
+      ## with as.numeric, so the final result of the relation is NA, which
+      ## causes the error. TODO: watch countInfected for becoming NaN and debug
+      ## when that happens to determine WHY.
+      if (all(as.numeric(countInfected) >= 0,
+              !(uniqueInfectionLikelihoods > 1)))
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       ## NOTE: transmission likelihoods is the force of infection.
