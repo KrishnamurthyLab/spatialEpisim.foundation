@@ -944,12 +944,6 @@ SVEIRD.BayesianDataAssimilation <-
       QHt <- matrices.Bayes$QHt
     }
 
-    ## NOTE: preallocate the list which will hold a timeseries of SpatRaster
-    ## objects. MAYBE TODO: there are other ways to work with time series data;
-    ## within the terra documentation, time series data is usually stored as a
-    ## SpatRaster with multiple layers for a single variable, with each layer of
-    ## the SpatRaster representing a different timestep. Search for "timestep"
-    ## in the terra documentation.
     layers.timeseries <- vector(mode = "list", length = n.days)
 
     if (!missing(callback) && hasName(callback, "before")) {
