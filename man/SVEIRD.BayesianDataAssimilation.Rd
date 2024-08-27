@@ -18,8 +18,8 @@ SVEIRD.BayesianDataAssimilation(
   aggregationFactor,
   startDate,
   countryCodeISO3C,
-  incidenceData = NULL,
-  deathData = NULL,
+  incidenceData,
+  deathData,
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = FALSE,
   healthZoneCoordinates,
@@ -194,7 +194,7 @@ data("healthZonesCongo", package = "spatialEpisim.foundation")
 data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 rasterAggregationFactor = 9
-simluation.days <- 440
+simluation.days <- 20
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -214,17 +214,10 @@ SVEIRD.BayesianDataAssimilation(
   aggregationFactor = rasterAggregationFactor,
   startDate = "2018-08-01",
   countryCodeISO3C = "COD",
-  incidenceData = head(Congo.EbolaIncidence),
   ## Model options
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = FALSE,
-  healthZoneCoordinates = healthZonesCongo,
-  variableCovarianceFunction = "DBD",
   ## Special parameters
-  forecastError.cov.sdBackground = 0.55,
-  forecastError.cor.length = 6.75e-1,
-  neighbourhood.Bayes = 3,
-  psi.diagonal = 1e-3,
   callback = list(before = list(fun = cli::cli_progress_bar,
                                 args = list(name = "Simulating epidemic (SEI-type)",
                                             total = simluation.days)),
@@ -241,7 +234,7 @@ SVEIRD.BayesianDataAssimilation(
   delta = 2/36,
   lambda = 18,
   ## Model runtime
-  n.days = 31,
+  n.days = 31, ## a month
   ## Model data
   seedData = initialInfections.fourCities,
   neighbourhood.order = 1,

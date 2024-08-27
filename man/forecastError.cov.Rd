@@ -59,7 +59,12 @@ susceptibleSpatRaster <- terra::rast(
 layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
                                susceptibleSpatRaster,
                                aggregationFactor = 10)
-Ituri.forecastError.cov <- forecastError.cov(layers, "DBD", 2, 0.8, 4, 2)
+Ituri.forecastError.cov <- forecastError.cov(layers,
+                                             variableCovarianceFunction = "DBD",
+                                             forecastError.cov.sdBackground = 2,
+                                             forecastError.cor.length = 0.8,
+                                             neighbourhood = 1,
+                                             compartmentsReported = 2)
 }
 \author{
 Bryce Carson

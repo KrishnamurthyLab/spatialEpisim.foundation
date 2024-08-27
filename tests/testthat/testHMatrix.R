@@ -1,11 +1,13 @@
 ## NOTE: used in both the originalCodeResults and newCodeResults
-rasterAggregationFactor <- 35
+rasterAggregationFactor <- 5
 
 originalCodeResults <- {
-  library(Matrix)
-  library(raster)
-  library(countrycode)
-  library(terra)
+  suppressPackageStartupMessages({
+    library(Matrix)
+    library(raster)
+    library(countrycode)
+    library(terra)
+  })
 
   generateLIO2 <- function(rasterStack, sitRepData, states_observable = 2) {
     nrows <- nrow(rasterStack)

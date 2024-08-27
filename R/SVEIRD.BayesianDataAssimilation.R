@@ -517,8 +517,9 @@ linearInterpolationOperator <- function(layers,
           FUN =
             function(row) {
               m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
+              ## MAYBE FIXME: when the compartments is 2, shouldn't this be 2*extend.length?
               m[(extend.length + 1):(terra::nrow(m) - extend.length),
-              (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
+                (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
                 Matrix::t() %>% # row-major order (byrow)
                 as.vector()
             }) %>% Matrix::t() # rows should be health zones
@@ -568,7 +569,12 @@ linearInterpolationOperator <- function(layers,
 ##' layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
 ##'                                susceptibleSpatRaster,
 ##'                                aggregationFactor = 10)
-##' Ituri.forecastError.cov <- forecastError.cov(layers, "DBD", 2, 0.8, 4, 2)
+##' Ituri.forecastError.cov <- forecastError.cov(layers,
+##'                                              variableCovarianceFunction = "DBD",
+##'                                              forecastError.cov.sdBackground = 2,
+##'                                              forecastError.cor.length = 0.8,
+##'                                              neighbourhood = 1,
+##'                                              compartmentsReported = 2)
 forecastError.cov <- function(layers,
                               variableCovarianceFunction,
                               forecastError.cov.sdBackground,
@@ -628,7 +634,7 @@ forecastError.cov <- function(layers,
 
   forecastErrorCovariance[decay < neighbourhood] <-
     varCov.fun()[decay < neighbourhood]
-  diag(forecastErrorCovariance) <-
+  Matrix::diag(forecastErrorCovariance) <-
     ifelse(Matrix::diag(forecastErrorCovariance) == 0,
            forecastError.cov.sdBackground,
            Matrix::diag(forecastErrorCovariance))
@@ -779,7 +785,7 @@ forecastError.cov <- function(layers,
 ##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 ##' rasterAggregationFactor = 9
-##' simluation.days <- 440
+##' simluation.days <- 20
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -799,17 +805,10 @@ forecastError.cov <- function(layers,
 ##'   aggregationFactor = rasterAggregationFactor,
 ##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
-##'   incidenceData = head(Congo.EbolaIncidence),
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = FALSE,
-##'   healthZoneCoordinates = healthZonesCongo,
-##'   variableCovarianceFunction = "DBD",
 ##'   ## Special parameters
-##'   forecastError.cov.sdBackground = 0.55,
-##'   forecastError.cor.length = 6.75e-1,
-##'   neighbourhood.Bayes = 3,
-##'   psi.diagonal = 1e-3,
 ##'   callback = list(before = list(fun = cli::cli_progress_bar,
 ##'                                 args = list(name = "Simulating epidemic (SEI-type)",
 ##'                                             total = simluation.days)),
@@ -826,7 +825,7 @@ forecastError.cov <- function(layers,
 ##'   delta = 2/36,
 ##'   lambda = 18,
 ##'   ## Model runtime
-##'   n.days = 31,
+##'   n.days = 31, ## a month
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   neighbourhood.order = 1,
@@ -867,16 +866,18 @@ SVEIRD.BayesianDataAssimilation <-
            aggregationFactor,
            startDate,
            countryCodeISO3C,
-           incidenceData = NULL,
-           deathData = NULL,
+
+           ## Bayesian data assimilation
+           incidenceData,
+           deathData,
 
            ## Model options
            simulationIsDeterministic = TRUE,
            dataAssimilationEnabled = FALSE,
+
+           ## Bayesian data assimilation
            healthZoneCoordinates,
            variableCovarianceFunction,
-
-           ## Special parameters
            forecastError.cov.sdBackground,
            forecastError.cor.length,
            neighbourhood.Bayes,
@@ -884,18 +885,28 @@ SVEIRD.BayesianDataAssimilation <-
 
            ## Monitoring and logging
            callback = `{`) {
-    ## MAYBE: missing a better option than using NULLs as defaults?
-    compartmentsReported <- sum(!is.null(incidenceData), !is.null(deathData))
-
-    incidenceData$Date <- lubridate::ymd(incidenceData$Date)
     startDate <- lubridate::ymd(startDate)
-    stopifnot(startDate <= dplyr::first(incidenceData$Date))
+
+    if (!dataAssimilationEnabled) {
+      ## When data assimilation is enabled, neither incidence nor death data should be provided.
+      stopifnot(missing(incidenceData) && missing(deathData))
+    } else {
+      if (!missing(incidenceData) && !(startDate <= dplyr::first(incidenceData$Date <- lubridate::ymd(incidenceData$Date)))) {
+        stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(incidenceData$Date)))
+      }
+
+      if (!missing(deathData) && !(startDate <= dplyr::first(deathData$Date <- lubridate::ymd(deathData$Date)))) {
+        stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(deathData$Date)))
+      }
+    }
+
 
     ## NOTE: Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summaryTable".
     names <- c(
       ## Population and epidemic compartments (states)
-      "N", "S", "V", "E", "I", "R", "D",
+      "N", # referred to as the count of "living" later on.
+      "S", "V", "E", "I", "R", "D",
       ## Daily values of new vaccinations, exposures, infections,
       ## recoveries, and deaths
       "newV", "newE", "newI", "newR","newD",
@@ -908,19 +919,25 @@ SVEIRD.BayesianDataAssimilation <-
       "colnames<-"(names)
     summaryTable <- cbind(tibble::tibble(Date = startDate + lubridate::days(0:(n.days - 1))),
                           summaryTable)
-    stopifnot(all(incidenceData$Date %in% summaryTable$Date))
 
     layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
 
     if (dataAssimilationEnabled) {
+      if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date))
+        stop("Not all data to be assimilated is within temporal bounds of simulation (dates of incidenceData exist outside of specified simulation dates).")
+      if (!missing(deathData) && !all(deathData$Date %in% summaryTable$Date))
+        stop("Not all data to be assimilated is within temporal bounds of simulation (dates of deathData exist outside of specified simulation dates).")
+
       matrices.Bayes <-
-        setupBayesianDataAssimilation(layers,
-                                      healthZoneCoordinates,
-                                      compartmentsReported,
-                                      variableCovarianceFunction,
-                                      forecastError.cov.sdBackground,
-                                      forecastError.cor.length,
-                                      neighbourhood.Bayes)
+        setupBayesianDataAssimilation(
+          layers,
+          healthZoneCoordinates,
+          compartmentsReported <- sum(!missing(incidenceData), !missing(deathData)),
+          variableCovarianceFunction,
+          forecastError.cov.sdBackground,
+          forecastError.cor.length,
+          neighbourhood.Bayes
+        )
       H <- linearInterpolationMatrix <- matrices.Bayes$H
       HQHt <- matrices.Bayes$HQHt
       QHt <- matrices.Bayes$QHt
@@ -935,7 +952,7 @@ SVEIRD.BayesianDataAssimilation <-
     layers.timeseries <- vector(mode = "list", length = n.days)
 
     ## MAYBE replace this type checking with lobstr:: namespaced functions?
-    if (is.list(callback) && hasName(callback, "during") && is.list(callback$during)) {
+    if (is.list(callback) && hasName(callback, "before") && is.list(callback$before)) {
       if (all(hasName(callback$before, "args"), is.list(callback$before$args)))
         do.call(callback$before$fun, args = callback$before$args)
       else
@@ -959,13 +976,14 @@ SVEIRD.BayesianDataAssimilation <-
 
       ## NOTE: set the previous timesteps compartment count values in the summary table before calculating values for
       ## the current timestep.
-      summaryTable[today, 1] <- round(living)
-      summaryTable[today, 2] <- round(terra::global(layers$Susceptible, sum, na.rm = TRUE))
-      summaryTable[today, 3] <- round(terra::global(layers$Vaccinated,  sum, na.rm = TRUE))
-      summaryTable[today, 4] <- round(terra::global(layers$Exposed,     sum, na.rm = TRUE))
-      summaryTable[today, 5] <- round(terra::global(layers$Infected,    sum, na.rm = TRUE))
-      summaryTable[today, 6] <- round(terra::global(layers$Recovered,   sum, na.rm = TRUE))
-      summaryTable[today, 7] <- round(terra::global(layers$Dead,        sum, na.rm = TRUE))
+      summaryTable[today, "N"] <- round(living)
+      summaryTable[today, "S"] <- round(terra::global(layers$Susceptible, sum, na.rm = TRUE))
+      summaryTable[today, "V"] <- round(terra::global(layers$Vaccinated,  sum, na.rm = TRUE))
+      summaryTable[today, "E"] <- round(terra::global(layers$Exposed,     sum, na.rm = TRUE))
+      summaryTable[today, "I"] <- round(countInfected <-
+                                        terra::global(layers$Infected,    sum, na.rm = TRUE))
+      summaryTable[today, "R"] <- round(terra::global(layers$Recovered,   sum, na.rm = TRUE))
+      summaryTable[today, "D"] <- round(terra::global(layers$Dead,        sum, na.rm = TRUE))
 
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
@@ -983,7 +1001,14 @@ SVEIRD.BayesianDataAssimilation <-
                      w = averageEuclideanDistance(lambda, aggregationFactor),
                      fun = "sum",
                      na.rm = TRUE)
-      stopifnot(length(unique(as.vector(transmissionLikelihoods))) > 1)
+
+      ## FIXME: "missing value where TRUE/FALSE needed". The error only occurs
+      ## after many iterations of the loop and data assimilation have occurred.
+      ## Why it becomes invalid, without logical values produced, I'm unsure for
+      ## now. This will need to be resolved after other work is committed.
+      uniqueInfectionLikelihoods <- length(unique(as.vector(transmissionLikelihoods)))
+      if (all(countInfected > 0, !(uniqueInfectionLikelihoods > 1)))
+        stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       ## NOTE: transmission likelihoods is the force of infection.
       ## growth <- matrix(as.vector(beta * proportionSusceptible) *
@@ -1220,7 +1245,7 @@ assimilateData <-
     Psi <- diag(Psi)
 
     ## TODO: remove this, it is for investigative purposes.
-    if (dim(HQHt) != dim(Psi))
+    if (!identical(dim(HQHt), dim(Psi)))
       message("HQHT + diag(incidenceData[TODAY, ]) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
 
     ## NOTE: The gain matrix, the Kalman filter, determines how the

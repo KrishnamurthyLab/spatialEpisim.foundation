@@ -8,8 +8,8 @@
 ## These variables are treated as constants to be used throughout the testing
 ## conducted in this file.
 COD <- "Democratic Republic of Congo"
-QVar <- 0
-QCorrLength <- 0
+QVar <- 2
+QCorrLength <- 0.8
 max.print.old <- getOption("max.print")
 statesObservable <- 2
 rasterAggregationFactor <- 35
@@ -23,10 +23,12 @@ variableCovarianceFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", 
 ## original code and the new code to allow a simpler but still useful
 ## comparison.
 originalCodeResults <- {
-  library(Matrix)
-  library(raster)
-  library(countrycode)
-  library(terra)
+  suppressPackageStartupMessages({
+    library(Matrix)
+    library(raster)
+    library(countrycode)
+    library(terra)
+  })
 
   genQ <- function(nrows, ncols, varCovarFunc, QVar, QCorrLength, nbhd, states_observable = 2) {
     p <- nrows * ncols
@@ -150,12 +152,13 @@ originalCodeResults <- {
     susceptibleLayer = createSusceptibleLayer(COD, rasterAgg = rasterAggregationFactor)
   )
 
-  options("max.print" = 1)
+  options("max.print" = 3)
 
+  print("Generating results of neighbourhood of zero with original code...")
   results.nbhd.zero <- lapply(
     X = variableCovarianceFunctions,
     function(x) {
-      genQ(
+      suppressMessages(genQ(
         varCovarFunc = x,
         nrows = nrow(rs$rasterStack),
         ncols = ncol(rs$rasterStack),
@@ -163,12 +166,13 @@ originalCodeResults <- {
         QVar = QVar,
         QCorrLength = QCorrLength,
         states_observable = statesObservable
-      )
+      ))
     }
   )
 
+  print("Generating results of neighbourhood of one with original code...")
   results.nbhd.one <- lapply(
-    X = c("DBD", "Balgovind", "Exponential", "Gaussian", "Spherical"),
+    X = variableCovarianceFunctions,
     function(x) {
       suppressMessages(genQ(
         varCovarFunc = x,
@@ -177,7 +181,7 @@ originalCodeResults <- {
         nbhd = 1,
         QVar = 0,
         QCorrLength = 0,
-        states_observable = 2
+        states_observable = statesObservable
       ))
     }
   )

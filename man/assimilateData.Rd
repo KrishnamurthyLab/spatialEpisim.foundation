@@ -88,9 +88,9 @@ SVEIRD.BayesianDataAssimilation for more details.
 
 \item{psi.diagonal}{TODO}
 
-\item{QHt}{TODO}
+\item{QHt}{the \link{tcrossprod} of the Q and H matrices.}
 
-\item{HQHt}{TODO}
+\item{HQHt}{the product of the H matrix and QHt.}
 }
 \value{
 a list of SpatRasters, the Infected and Exposed SpatRasters
