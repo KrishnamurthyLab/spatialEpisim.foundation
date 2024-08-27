@@ -976,18 +976,13 @@ SVEIRD.BayesianDataAssimilation <-
         }
       }
 
-      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE), sum, na.rm = TRUE))
+      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE), "sum", na.rm = TRUE))
 
-      ## NOTE: set the previous timesteps compartment count values in the summary table before calculating values for
-      ## the current timestep.
+      ## NOTE: set the previous timesteps compartment count values in the
+      ## summary table before calculating values for the current timestep.
       summaryTable[today, "N"] <- round(living)
-      summaryTable[today, "S"] <- round(terra::global(layers$Susceptible, sum, na.rm = TRUE))
-      summaryTable[today, "V"] <- round(terra::global(layers$Vaccinated,  sum, na.rm = TRUE))
-      summaryTable[today, "E"] <- round(terra::global(layers$Exposed,     sum, na.rm = TRUE))
-      summaryTable[today, "I"] <- round(countInfected <-
-                                        terra::global(layers$Infected,    sum, na.rm = TRUE))
-      summaryTable[today, "R"] <- round(terra::global(layers$Recovered,   sum, na.rm = TRUE))
-      summaryTable[today, "D"] <- round(terra::global(layers$Dead,        sum, na.rm = TRUE))
+      summaryTable[today, c("S", "V", "E", "I", "R", "D")] <-
+        round(sums <- t(terra::global(layers, "sum", na.rm = TRUE)))
 
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
@@ -1007,14 +1002,14 @@ SVEIRD.BayesianDataAssimilation <-
                      na.rm = TRUE)
 
       uniqueInfectionLikelihoods <- length(unique(as.vector(transmissionLikelihoods)))
-      ## FIXME: eventually countInfected becomes NaN, which evaluates to TRUE
-      ## with as.numeric, so the final result of the relation is NA, which
-      ## causes the error. TODO: watch countInfected for becoming NaN and debug
-      ## when that happens to determine WHY.
-      if (all(as.numeric(countInfected) >= 0,
+      if (is.nan(sums[, "Infected"]))
+        warning("The result of (global) sum total of the Infected compartment is NaN according to terra, so the check that the number of unique infection likelihoods is greater than one is being skipped this iteration. See issue #13.")
+      if (all(!is.nan(sums[, "Infected"]),
+              as.numeric(sums[, "Infected"]) >= 0,
               !(uniqueInfectionLikelihoods > 1)))
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
+      ## TODO: evaluate the difference between the following forms.
       ## NOTE: transmission likelihoods is the force of infection.
       ## growth <- matrix(as.vector(beta * proportionSusceptible) *
       ##                  as.vector(transmissionLikelihoods),
@@ -1353,7 +1348,7 @@ castSeedDataQueensNeighbourhood <-
   function(layers, seedData, neighbourhood.order) {
     ## This function works for higher orders, but we limit it to zeroth or first order.
     stopifnot(any(neighbourhood.order == c(0, 1)))
-    sumBeforeSeeding <- sum(terra::global(layers, sum, na.rm = TRUE))
+    sumBeforeSeeding <- sum(terra::global(layers, "sum", na.rm = TRUE))
 
     ## NOTE: evenly spread the count of exposed and infected persons across a
     ## Chess Queen's neighbourhood of a given order; this value is assigned to
@@ -1395,7 +1390,7 @@ castSeedDataQueensNeighbourhood <-
       layers$Dead
 
     stopifnot(terra::global(layers$Susceptible, min, na.rm = TRUE) >= 0)
-    stopifnot(sum(terra::global(layers, sum, na.rm = TRUE)) == sumBeforeSeeding)
+    stopifnot(sum(terra::global(layers, "sum", na.rm = TRUE)) == sumBeforeSeeding)
     return(layers)
   }
 
