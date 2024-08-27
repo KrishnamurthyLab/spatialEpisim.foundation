@@ -69,7 +69,7 @@ using Bayesian data assimilation.</p>
 <span>  <span class="va">forecastError.cor.length</span>,</span>
 <span>  <span class="va">neighbourhood.Bayes</span>,</span>
 <span>  <span class="va">psi.diagonal</span>,</span>
-<span>  callback <span class="op">=</span> <span class="va">`{`</span></span>
+<span>  <span class="va">callback</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -248,11 +248,11 @@ about a neighbourhood of cells.</p></dd>
 <dd><p>a callback function to run, with no arguments, which will be
 called every time the main loop of the simulation iterates, or a list of
 callback functions which run before, during, and after the loop, and which
-has following structure. For each component, if the component is a list it
-must have members fun and args, where fun is a function symbol and args is
-a list of named arguments to the function; if it is not a list, the
-component of the list (before, during, or after) must be a function. See
-the examples.</p></dd>
+have the following structure. For each component, if the component is a
+list it must have members fun and args, where fun is a function symbol and
+args is a list of named arguments to the function; if it is not a list,
+the component of the list (before, during, or after) must be a function.
+See the examples.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -321,7 +321,7 @@ compartment values over time, the daily values, and cumulative values.</p>
 <span class="r-in"><span>                  after <span class="op">=</span> <span class="fu">cli</span><span class="fu">::</span><span class="va"><a href="https://cli.r-lib.org/reference/cli_progress_bar.html" class="external-link">cli_progress_done</a></span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■                       </span>  25% | ETA:  3s</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■■■■                </span>  50% | ETA:  2s</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■                      </span>  30% | ETA:  3s</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ </span> 100% | ETA:  0s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $table</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 20 × 15</span></span>
@@ -390,7 +390,8 @@ compartment values over time, the daily values, and cumulative values.</p>
 <span class="r-in"><span>  forecastError.cov.sdBackground <span class="op">=</span> <span class="fl">0.55</span>,</span></span>
 <span class="r-in"><span>  forecastError.cor.length <span class="op">=</span> <span class="fl">6.75e-1</span>,</span></span>
 <span class="r-in"><span>  neighbourhood.Bayes <span class="op">=</span> <span class="fl">3</span>,</span></span>
-<span class="r-in"><span>  psi.diagonal <span class="op">=</span> <span class="fl">1e-3</span></span></span>
+<span class="r-in"><span>  psi.diagonal <span class="op">=</span> <span class="fl">1e-3</span>,</span></span>
+<span class="r-in"><span>  callback <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="st">"Iterating..."</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>[Linear interpolation operator] Raster aggregation factor is too high to differentiate between two (or more) health zones (they correspond to the same grid cell).</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 4 × 2</span></span>
@@ -401,6 +402,12 @@ compartment values over time, the daily values, and cumulative values.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> Vuhovi         <span style="text-decoration: underline;">3</span>415</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">3</span> Mambasa        <span style="text-decoration: underline;">2</span>305</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">4</span> Mandima        <span style="text-decoration: underline;">2</span>305</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
 <span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in if (all(countInfected &gt; 0, !(uniqueInfectionLikelihoods &gt; 1))) stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix."):</span> missing value where TRUE/FALSE needed</span>
 </code></pre></div>
     </div>
