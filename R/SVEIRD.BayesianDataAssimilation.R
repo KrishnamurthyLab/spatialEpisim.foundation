@@ -752,11 +752,11 @@ forecastError.cov <- function(layers,
 ##' @param callback a callback function to run, with no arguments, which will be
 ##'   called every time the main loop of the simulation iterates, or a list of
 ##'   callback functions which run before, during, and after the loop, and which
-##'   has following structure. For each component, if the component is a list it
-##'   must have members fun and args, where fun is a function symbol and args is
-##'   a list of named arguments to the function; if it is not a list, the
-##'   component of the list (before, during, or after) must be a function. See
-##'   the examples.
+##'   have the following structure. For each component, if the component is a
+##'   list it must have members fun and args, where fun is a function symbol and
+##'   args is a list of named arguments to the function; if it is not a list,
+##'   the component of the list (before, during, or after) must be a function.
+##'   See the examples.
 ##' @returns a summaryTable dataframe for the simulation, showing changes in the
 ##'   compartment values over time, the daily values, and cumulative values.
 ##' @author Bryce Carson
@@ -845,7 +845,8 @@ forecastError.cov <- function(layers,
 ##'   forecastError.cov.sdBackground = 0.55,
 ##'   forecastError.cor.length = 6.75e-1,
 ##'   neighbourhood.Bayes = 3,
-##'   psi.diagonal = 1e-3
+##'   psi.diagonal = 1e-3,
+##'   callback = function() message("Iterating...")
 ##' )
 SVEIRD.BayesianDataAssimilation <-
   function(## Parameters influencing differential equations
@@ -884,7 +885,7 @@ SVEIRD.BayesianDataAssimilation <-
            psi.diagonal,
 
            ## Monitoring and logging
-           callback = `{`) {
+           callback) {
     startDate <- lubridate::ymd(startDate)
 
     if (!dataAssimilationEnabled) {
@@ -951,26 +952,35 @@ SVEIRD.BayesianDataAssimilation <-
     ## in the terra documentation.
     layers.timeseries <- vector(mode = "list", length = n.days)
 
-    ## MAYBE replace this type checking with lobstr:: namespaced functions?
-    if (is.list(callback) && hasName(callback, "before") && is.list(callback$before)) {
-      if (all(hasName(callback$before, "args"), is.list(callback$before$args)))
-        do.call(callback$before$fun, args = callback$before$args)
-      else
+    if (!missing(callback) && hasName(callback, "before")) {
+      if (all(c("fun", "args") %in% names(callback$before))) {
+        if (is.function(callback$before$fun) && is.list(callback$before$args))
+          do.call(callback$before$fun, args = callback$before$args)
+        else
+          simpleError(r"[The "before" callback is malformed.]")
+      } else if (is.function(callback$before)) {
         callback$before()
+      }
     }
 
     ## TODO: all of the calcualtions within this loop should be spatial
     ## calcualtions on the SpatRasters, and no conversion to vector or matrix
     ## should be performed unless absolutely necessary.
     for (today in seq(n.days)) {
-      ## MAYBE replace this type checking with lobstr:: namespaced functions?
-      if (is.list(callback) && hasName(callback, "during") && is.list(callback$during)) {
-        if (all(hasName(callback$during, "args"), is.list(callback$during$args)))
-          do.call(callback$during$fun, args = callback$during$args)
-        else
-          callback$during()
-      } else if (is.function(callback))
-        callback()
+      if (!missing(callback)) {
+        if (hasName(callback, "during")) {
+          if (all(c("fun", "args") %in% names(callback$during))) {
+            if (is.function(callback$during$fun) && is.list(callback$during$args))
+              do.call(callback$during$fun, args = callback$during$args)
+            else
+              simpleError(r"[The "during" callback is malformed.]")
+          } else if (is.function(callback$during)) {
+            callback$during()
+          }
+        } else if (is.function(callback)) {
+          callback()
+        }
+      }
 
       living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE), sum, na.rm = TRUE))
 
@@ -1066,12 +1076,15 @@ SVEIRD.BayesianDataAssimilation <-
       layers.timeseries[[today]] <- layers
     }
 
-    ## MAYBE replace this type checking with lobstr:: namespaced functions?
-    if (is.list(callback) && hasName(callback, "after") && is.list(callback$after)) {
-      if (all(hasName(callback$after, "args"), is.list(callback$after$args)))
-        do.call(callback$after$fun, args = callback$after$args)
-      else
+    if (!missing(callback) && hasName(callback, "after")) {
+      if (all(c("fun", "args") %in% names(callback$after))) {
+        if (is.function(callback$after$fun) && is.list(callback$after$args))
+          do.call(callback$after$fun, args = callback$after$args)
+        else
+          simpleError(r"[The "after" callback is malformed.]")
+      } else if (is.function(callback$after)) {
         callback$after()
+      }
     }
 
     ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
