@@ -12,7 +12,7 @@ QVar <- 2
 QCorrLength <- 0.8
 max.print.old <- getOption("max.print")
 statesObservable <- 2
-rasterAggregationFactor <- 35
+rasterAggregationFactor <- 40
 variableCovarianceFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", "Spherical")
 
 ## This compound expression (defining originalCodeResults) contains the
@@ -179,8 +179,8 @@ originalCodeResults <- {
         nrows = nrow(rs$rasterStack),
         ncols = ncol(rs$rasterStack),
         nbhd = 1,
-        QVar = 0,
-        QCorrLength = 0,
+        QVar = QVar,
+        QCorrLength = QCorrLength,
         states_observable = statesObservable
       ))
     }
