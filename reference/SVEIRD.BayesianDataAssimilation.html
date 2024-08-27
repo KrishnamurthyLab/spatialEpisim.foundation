@@ -321,7 +321,7 @@ compartment values over time, the daily values, and cumulative values.</p>
 <span class="r-in"><span>                  after <span class="op">=</span> <span class="fu">cli</span><span class="fu">::</span><span class="va"><a href="https://cli.r-lib.org/reference/cli_progress_bar.html" class="external-link">cli_progress_done</a></span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■                       </span>  25% | ETA:  3s</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■                      </span>  30% | ETA:  3s</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■                   </span>  40% | ETA:  3s</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ </span> 100% | ETA:  0s</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $table</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 20 × 15</span></span>
@@ -408,7 +408,7 @@ compartment values over time, the daily values, and cumulative values.</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Iterating...</span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in if (all(countInfected &gt; 0, !(uniqueInfectionLikelihoods &gt; 1))) stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix."):</span> missing value where TRUE/FALSE needed</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in if (all(as.numeric(countInfected) &gt;= 0, !(uniqueInfectionLikelihoods &gt;     1))) stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix."):</span> missing value where TRUE/FALSE needed</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
