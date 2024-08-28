@@ -245,9 +245,10 @@ test_that("Forecast error covariance (Q) matrix is correct", {
 
   ## Likewise, expect that the (assumedly single) unique value on the diagonal
   ## is equal to QVar.
-  lapply(newCodeResults, function(nbhd.component) {
-    lapply(nbhd.component, diag) %>%
-      lapply(unique) %>%
-      lapply(expect_equal, expected = QVar)
-  })
+  lapply(newCodeResults$No.neighborhood, diag) %>%
+    lapply(unique) %>%
+    lapply(expect_equal, expected = QVar)
+  lapply(newCodeResults$Moore.neighborhood, diag) %>%
+    lapply(unique) %>%
+    lapply(expect_equal, expected = QVar)
 })
