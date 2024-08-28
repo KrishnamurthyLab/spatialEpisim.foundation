@@ -521,9 +521,9 @@ linearInterpolationOperator <- function(layers,
                 as.vector()
             }) %>% Matrix::t() # rows should be health zones
 
-  if (compartmentsReported == 2) H <- Matrix::bdiag(H, H)
+  if (compartmentsReported == 2) H <- as.matrix(Matrix::bdiag(H, H))
 
-  stopifnot(sum(.rowSums(H, m = nrow(H), n = ncol(H))) == nrow(healthZoneCoordinates))
+  stopifnot(sum(.rowSums(H, m = nrow(H), n = ncol(H))) == (compartmentsReported * nrow(healthZoneCoordinates)))
 
   return(H)
 }
