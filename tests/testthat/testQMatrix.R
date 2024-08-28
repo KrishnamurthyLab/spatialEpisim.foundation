@@ -205,7 +205,7 @@ newCodeResults <- {
         forecastError.cov.sdBackground = QVar,
         forecastError.cor.length = QCorrLength,
         neighbourhood = 0,
-        compartmentsReported = 2
+        compartmentsReported = statesObservable
       )
     }
   )
@@ -219,7 +219,7 @@ newCodeResults <- {
         forecastError.cov.sdBackground = QVar,
         forecastError.cor.length = QCorrLength,
         neighbourhood = 1,
-        compartmentsReported = 2
+        compartmentsReported = statesObservable
       )
     }
   )
@@ -231,15 +231,23 @@ newCodeResults <- {
 }
 
 test_that("Forecast error covariance (Q) matrix is correct", {
-  ## NOTE: the objects must be available and have the correct names for the test
-  ## to proceed. If either object doesn't have the correct names, then something
-  ## is obviously wrong.
-  expect_named(originalCodeResults, c("No.neighborhood", "Moore.neighborhood"))
-  expect_named(newCodeResults, c("No.neighborhood", "Moore.neighborhood"))
+  ## Whether no neighbourhood or a Moore neighbourhood is specified in the
+  ## component, get the QFull (the block diagonal matrix in the original code)
+  ## and test if the unique value(s) in the diagonal of the Q matrix is the
+  ## value of QVar (which is a single value, and so there should only be one
+  ## unique value on the diagonal).
+  lapply(originalCodeResults, function(nbhd.component) {
+    lapply(nbhd.component, \(l) get("QFull", pos = l)) %>%
+      lapply(diag) %>%
+      lapply(unique) %>%
+      lapply(expect_equal, expected = QVar)
+  })
 
-  ## FIXME: Error in `diag(originalCodeResults$No.neighborhood)`: 'list' object cannot be coerced to type 'double'
-  expect_equal(unique(diag(originalCodeResults$No.neighborhood)), 1)
-  expect_equal(unique(diag(originalCodeResults$Moore.neighborhood)), 1)
-  expect_equal(unique(diag(newCodeResults$No.neighborhood)), 1)
-  expect_equal(unique(diag(newCodeResults$Moore.neighborhood)), 1)
+  ## Likewise, expect that the (assumedly single) unique value on the diagonal
+  ## is equal to QVar.
+  lapply(newCodeResults, function(nbhd.component) {
+    lapply(nbhd.component, diag) %>%
+      lapply(unique) %>%
+      lapply(expect_equal, expected = QVar)
+  })
 })
