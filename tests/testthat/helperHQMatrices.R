@@ -51,10 +51,10 @@ createSusceptibleLayer <- function(selectedCountry, rasterAgg = 0) {
     WorldPop <- rast(paste0(tifFolder, tifFileName))
 
     # Gives the five number summary
-    message(summary(values(WorldPop)))
+    ## message(summary(values(WorldPop)))
 
     # Number of cells that have an NA value
-    message(sum(is.na(values(WorldPop))))
+    ## message(sum(is.na(values(WorldPop))))
 
     # message(as.raster(WorldPop))
 
