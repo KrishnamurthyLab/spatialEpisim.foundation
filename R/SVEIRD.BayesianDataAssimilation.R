@@ -903,15 +903,16 @@ SVEIRD.BayesianDataAssimilation <-
       ## When data assimilation is enabled, neither incidence nor death data should be provided.
       stopifnot(missing(incidenceData) && missing(deathData))
     } else {
-      if (!missing(incidenceData) && !(startDate <= dplyr::first(incidenceData$Date <- lubridate::ymd(incidenceData$Date)))) {
-        stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(incidenceData$Date)))
+      if (!missing(incidenceData)) {
+        if (!(startDate <= dplyr::first(incidenceData$Date <- lubridate::ymd(incidenceData$Date))))
+          stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(incidenceData$Date)))
       }
 
-      if (!missing(deathData) && !(startDate <= dplyr::first(deathData$Date <- lubridate::ymd(deathData$Date)))) {
-        stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(deathData$Date)))
+      if (!missing(deathData)) {
+        if (!(startDate <= dplyr::first(deathData$Date <- lubridate::ymd(deathData$Date))))
+          stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(deathData$Date)))
       }
     }
-
 
     ## NOTE: Preallocate a zeroed data frame with the following column names, and
     ## store it in a symbol named "summaryTable".
