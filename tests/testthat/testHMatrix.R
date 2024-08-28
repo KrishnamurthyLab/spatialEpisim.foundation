@@ -1,14 +1,7 @@
 ## NOTE: used in both the originalCodeResults and newCodeResults
-rasterAggregationFactor <- 5
+rasterAggregationFactor <- 20
 
 originalCodeResults <- {
-  suppressPackageStartupMessages({
-    library(Matrix)
-    library(raster)
-    library(countrycode)
-    library(terra)
-  })
-
   generateLIO2 <- function(rasterStack, sitRepData, states_observable = 2) {
     nrows <- nrow(rasterStack)
     ncols <- ncol(rasterStack)
@@ -131,7 +124,8 @@ originalCodeResults <- {
   }
 
   COD <- "Democratic Republic of Congo"
-  sitRepData <- test_path("observeddata", "Ebola_Health_Zones_LatLon_4zones.csv")
+  ## TODO: change this to the 
+  sitRepData <- test_path("observeddata", "Ebola_Health_Zones_LatLon.csv")
   rs <- createRasterStack(
     selectedCountry = COD,
     rasterAgg = rasterAggregationFactor,
@@ -177,10 +171,17 @@ newCodeResults <- {
   )
 }
 
-test_that("Linear interpolation operator (LIO2) results are correct", {
-  expect_named(originalCodeResults, c("oneStateObserved", "twoStateObserved"))
-  expect_named(newCodeResults, c("oneStateObserved", "twoStateObserved"))
+test_that("Linear interpolation operator (LIO2) results are of the correct dimensions", {
+  expect_true(identical(nrow(rs), nrow(sveirdLayers)))
+  expect_true(identical(ncol(rs), ncol(sveirdLayers)))
+  expect_true(identical(res(rs), res(sveirdLayers)))
+  expect_true(identical(ext(rs), ext(sveirdLayers)))
+  expect_true(identical(crs(rs), crs(sveirdLayers)))
+  expect_true(identical(dim(originalCodeResults$oneStateObserved),
+                        dim(newCodeResults$oneStateObserved)))
+  expect_true(identical(dim(originalCodeResults$twoStateObserved),
+                        dim(newCodeResults$twoStateObserved)))
 
-  warning("The H matrices have been compared manually (see wiki on the package's GitHub), but here's an automated test for completeness.")
+  ## warning("The H matrices have been compared manually (see wiki on the package's GitHub), but here's an automated test for completeness.")
   ## expect_equal(originalCodeResults, newCodeResults)
 })

@@ -169,8 +169,7 @@ a summaryTable dataframe for the simulation, showing changes in the
 compartment values over time, the daily values, and cumulative values.
 }
 \description{
-Run a SVEIRD compartmental model of an epidemic, optionally
-using Bayesian data assimilation.
+Run a SVEIRD compartmental model of an epidemic, optionally using Bayesian data assimilation.
 }
 \examples{
 subregionsSpatVector <- terra::vect(
@@ -195,6 +194,15 @@ data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 rasterAggregationFactor = 9
 simluation.days <- 20
+if (requireNamespace("cli", quiet = TRUE)) {
+  callback <- list(before = list(fun = cli::cli_progress_bar,
+                                 args = list(name = "Simulating epidemic (SEI-type)",
+                                             total = simluation.days)),
+                   during = cli::cli_progress_update,
+                   after = cli::cli_progress_done)
+} else {
+  callback <- "{" # does nothing
+}
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -217,14 +225,11 @@ SVEIRD.BayesianDataAssimilation(
   ## Model options
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = FALSE,
-  ## Special parameters
-  callback = list(before = list(fun = cli::cli_progress_bar,
-                                args = list(name = "Simulating epidemic (SEI-type)",
-                                            total = simluation.days)),
-                  during = cli::cli_progress_update,
-                  after = cli::cli_progress_done)
+  callback = callback
 )
 
+## A large, lengthy simulation with Bayesian data assimilation (runtime
+## approximately four minutes).
 simulation.days <- 532
 SVEIRD.BayesianDataAssimilation(
   ## Parameters

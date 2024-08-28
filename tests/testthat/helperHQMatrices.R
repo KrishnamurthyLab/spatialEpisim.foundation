@@ -20,6 +20,14 @@ susceptibleSpatRaster <-
 data("healthZonesCongo", package = "spatialEpisim.foundation")
 data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 
+suppressPackageStartupMessages({
+  require("Matrix")
+  require("sp")
+  require("raster")
+  require("countrycode")
+  require("terra")
+})
+
 createSusceptibleLayer <- function(selectedCountry, rasterAgg = 0) {
     #----------------------------------------------------------------#
     # Source 1: WorldPop UN-Adjusted Population Count GeoTIFF raster #

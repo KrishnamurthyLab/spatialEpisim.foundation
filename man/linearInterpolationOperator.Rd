@@ -8,7 +8,7 @@ vectors}
 linearInterpolationOperator(
   layers,
   healthZoneCoordinates,
-  neighbourhood.order = 0,
+  neighbourhood.order = 2,
   compartmentsReported = 1
 )
 }

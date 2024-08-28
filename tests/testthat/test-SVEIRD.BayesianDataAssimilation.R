@@ -3,25 +3,10 @@ test_that("DRC WorldPop data is appropriate", {
 })
 
 test_that("Population SpatRaster is as described", {
-    layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
-                                   susceptibleSpatRaster,
-                                   aggregationFactor = 35)
-
   CongoSpatRaster <- getCountryPopulation.SpatRaster("COD")
-
   expect_true(is(CongoSpatRaster, "SpatRaster"))
   expect_named(CongoSpatRaster, "Population")
 })
-
-## test_that("Average Euclidean distance is correct", {
-## })
-## test_that("Transmission likelihood weightings are corect", {
-## })
-## test_that("The Linear Interpolation Operator, H, is correct", {
-## })
-## "SVEIRD compartmental epidemic model with Bayesian data assimilation is correct"
-## "Setup of Bayesian data assimilation is correct"
-## "Bayesian data assimilation works correctly"
 
 test_that("Casting seed data in a Queen's neighbourhood of a given order works correctly", {
   layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
@@ -40,9 +25,9 @@ test_that("Casting seed data in a Queen's neighbourhood of a given order works c
 
   ## Seeding should not alter the sum total of the population in the raster.
   castSeedDataQueensNeighbourhood(layers, initialInfections.fourCities, 0) %>%
-  terra::global("sum", na.rm = TRUE) %>%
-  sum(na.rm = TRUE) %>%
-  expect_equal(expected = populationBeforeSeeding)
+    terra::global("sum", na.rm = TRUE) %>%
+    sum(na.rm = TRUE) %>%
+    expect_equal(expected = populationBeforeSeeding)
 })
 
 test_that("Population remains the same after cropping and aggregation", {

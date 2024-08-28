@@ -23,13 +23,6 @@ variableCovarianceFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", 
 ## original code and the new code to allow a simpler but still useful
 ## comparison.
 originalCodeResults <- {
-  suppressPackageStartupMessages({
-    library(Matrix)
-    library(raster)
-    library(countrycode)
-    library(terra)
-  })
-
   genQ <- function(nrows, ncols, varCovarFunc, QVar, QCorrLength, nbhd, states_observable = 2) {
     p <- nrows * ncols
     message(p)
@@ -154,7 +147,6 @@ originalCodeResults <- {
 
   options("max.print" = 3)
 
-  print("Generating results of neighbourhood of zero with original code...")
   results.nbhd.zero <- lapply(
     X = variableCovarianceFunctions,
     function(x) {
@@ -170,7 +162,6 @@ originalCodeResults <- {
     }
   )
 
-  print("Generating results of neighbourhood of one with original code...")
   results.nbhd.one <- lapply(
     X = variableCovarianceFunctions,
     function(x) {
@@ -245,4 +236,10 @@ test_that("Forecast error covariance (Q) matrix is correct", {
   ## is obviously wrong.
   expect_named(originalCodeResults, c("No.neighborhood", "Moore.neighborhood"))
   expect_named(newCodeResults, c("No.neighborhood", "Moore.neighborhood"))
+
+  ## FIXME: Error in `diag(originalCodeResults$No.neighborhood)`: 'list' object cannot be coerced to type 'double'
+  expect_equal(unique(diag(originalCodeResults$No.neighborhood)), 1)
+  expect_equal(unique(diag(originalCodeResults$Moore.neighborhood)), 1)
+  expect_equal(unique(diag(newCodeResults$No.neighborhood)), 1)
+  expect_equal(unique(diag(newCodeResults$Moore.neighborhood)), 1)
 })

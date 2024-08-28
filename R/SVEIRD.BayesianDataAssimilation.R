@@ -415,7 +415,7 @@ averageEuclideanDistance <-
 ##' )
 linearInterpolationOperator <- function(layers,
                                         healthZoneCoordinates,
-                                        neighbourhood.order = 0,
+                                        neighbourhood.order = 2,
                                         compartmentsReported = 1) {
   stopifnot(neighbourhood.order %in% c(0, 1, 2))
   if (neighbourhood.order == 2)
@@ -465,7 +465,7 @@ linearInterpolationOperator <- function(layers,
 
   ## NOTE: preallocate the linear forward interpolation matrix, with
   ## dimensions q * p (health zones by cells in the SpatRaster).
-  H.extended <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
+  H <- base::matrix(0, nrow(healthZoneCoordinates), terra::ncell(layers))
 
   ## NOTE: these are the weightings used for the chess queen zeroth, first,
   ## and second order neighbours. The zeroth order neighbor is the position of
@@ -477,54 +477,55 @@ linearInterpolationOperator <- function(layers,
            c(3, 2, 1) * 35^-1)
 
   for (index in seq_along(cells)) {
-    H.extended[index, cells[index]] <- neighbour.weights[1]
+    H[index, cells[index]] <- neighbour.weights[1]
 
     if (neighbourhood.order != 0) {
-      neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.1st) == 8)
-      H.extended[index, neighbour.1st[neighbour.1st > 0 & neighbour.1st <= terra::ncell(layers)]] <- neighbour.weights[2]
+      neighbour.1st <- queensNeighbours(1, cells[index], terra::ncol(layers))
+      H[index, neighbour.1st] <- neighbour.weights[2]
     }
 
     if (neighbourhood.order == 2) {
-      neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers)); stopifnot(length(neighbour.2nd) == 16)
+      neighbour.2nd <- queensNeighbours(2, cells[index], terra::ncol(layers))
       if(anyDuplicated(c(neighbour.1st, neighbour.2nd)) > 0)
         simpleError("Duplicate cell indices among neighbours of multiple localities.")
-      H.extended[index, neighbour.2nd[neighbour.2nd > 0 & neighbour.2nd <= terra::ncell(layers)]] <- neighbour.weights[3]
+      H[index, neighbour.2nd] <- neighbour.weights[3]
     }
   }
 
   ## TODO: move the following NOTE to a better place than here; perhaps to the
   ## function documentation details. This should be tested using automatic
   ## testing with various input values. NOTE: this corresponds to the
-  ## hand-written note I made after discussion with Ashok. He told me that the
+  ## hand-written note I made after discussionwith Ashok. He told me that the
   ## sum of all cells needs to be equivalent to one; the sum of all cells is
   ## per-health zone, ergo the first condition checks that the sum of the entire
   ## matrix (with nrow := health zones) is the same as the number of health
   ## zones (because each should sum to one). NOTE: each row corresponds to one
   ## of the neighourhoods pictures in the plots "ashok.png" or "me.png".
-  stopifnot(dplyr::near(sum(H.extended), nrow(healthZoneCoordinates)))
-  stopifnot(dplyr::near(sum(matrix(H.extended[1, ],
+  stopifnot(dplyr::near(sum(H), nrow(healthZoneCoordinates)))
+  stopifnot(dplyr::near(sum(matrix(H[1, ],
                                    ncol = ncol(layers),
                                    byrow = TRUE)),
                         1))
 
-  if (compartmentsReported == 2) H.extended <- Matrix::bdiag(H.extended, H.extended)
-
   ## NOTE: the extended areas of the matrix are now dropped to return the matrix
   ## to the expected size for the input.
-  interpolationOperatorMatrix <-
-    apply(X = H.extended,
+  H <-
+    apply(X = H,
           MARGIN = 1, # apply the function to rows
           FUN =
             function(row) {
               m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-              ## MAYBE FIXME: when the compartments is 2, shouldn't this be 2*extend.length?
-              m[(extend.length + 1):(terra::nrow(m) - extend.length),
-                (extend.length + 1):(terra::ncol(m) - extend.length)] %>%
+              m[(extend.length + 1):(base::nrow(m) - extend.length),
+              (extend.length + 1):(base::ncol(m) - extend.length)] %>%
                 Matrix::t() %>% # row-major order (byrow)
                 as.vector()
             }) %>% Matrix::t() # rows should be health zones
 
-  return(interpolationOperatorMatrix)
+  if (compartmentsReported == 2) H <- Matrix::bdiag(H, H)
+
+  stopifnot(sum(.rowSums(H, m = nrow(H), n = ncol(H))) == nrow(healthZoneCoordinates))
+
+  return(H)
 }
 
 ##' @description generates a block diagonal error covariance matrix with exponential decay
@@ -646,8 +647,7 @@ forecastError.cov <- function(layers,
   return(forecastErrorCovariance)
 }
 
-##' @description Run a SVEIRD compartmental model of an epidemic, optionally
-##'   using Bayesian data assimilation.
+##' @description Run a SVEIRD compartmental model of an epidemic, optionally using Bayesian data assimilation.
 ##' @title SVEIRD compartmental model with optional Bayesian data assimilation
 ##' @param psi.diagonal TODO
 ##' @param layers The SpatRaster object with SVEIRD compartment layers, and a
@@ -786,6 +786,15 @@ forecastError.cov <- function(layers,
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 ##' rasterAggregationFactor = 9
 ##' simluation.days <- 20
+##' if (requireNamespace("cli", quiet = TRUE)) {
+##'   callback <- list(before = list(fun = cli::cli_progress_bar,
+##'                                  args = list(name = "Simulating epidemic (SEI-type)",
+##'                                              total = simluation.days)),
+##'                    during = cli::cli_progress_update,
+##'                    after = cli::cli_progress_done)
+##' } else {
+##'   callback <- "{" # does nothing
+##' }
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -808,14 +817,11 @@ forecastError.cov <- function(layers,
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = FALSE,
-##'   ## Special parameters
-##'   callback = list(before = list(fun = cli::cli_progress_bar,
-##'                                 args = list(name = "Simulating epidemic (SEI-type)",
-##'                                             total = simluation.days)),
-##'                   during = cli::cli_progress_update,
-##'                   after = cli::cli_progress_done)
+##'   callback = callback
 ##' )
 ##'
+##' ## A large, lengthy simulation with Bayesian data assimilation (runtime
+##' ## approximately four minutes).
 ##' simulation.days <- 532
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
