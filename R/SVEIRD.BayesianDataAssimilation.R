@@ -1258,10 +1258,7 @@ assimilateData <-
            QHt,
            HQHt) {
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-    ## TODO: Ashok is asking Thomas White about the meaning of "rat" in this
-    ## context; he is checking with Thomas why 1e-9 was chosen as well. DONE:
-    ## see the email Ashok sent to me this morning, Thursday August 15, 2024.
-    rat <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
+    ratio <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
 
@@ -1310,7 +1307,10 @@ assimilateData <-
     ## Exposed, if only Infected data is observed? What if Infected and
     ## Exposed data are observed and assimilated, how is RAT used then?
     ## Should any changes be made in that case from the usual algorithm?
-    exposures <- rat * layers$Infected
+    exposures <- ratio * layers$Infected # what is the difference between
+                                       # multiplying ratio against layers$Infected
+                                       # and the wide matrix Infected created at
+                                       # the beginning of this function?
 
     return(list(Infected = infectious, Exposed = exposures))
   }
