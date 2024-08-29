@@ -1296,7 +1296,9 @@ assimilateData <-
     ## NOTE: if an area is uninhabitable replace its value with zero; it makes
     ## more sense to instead use NA values to prevent calculating values for
     ## uninhabitable areas.
-    infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I), terra::ext(layers)), terra::crs(layers)),
+    infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I),
+                                                            terra::ext(layers)),
+                                             terra::crs(layers)),
                               classify.binary(layers$Susceptible),
                               maskvalues = 0,
                               updatevalue = 0)
