@@ -1257,7 +1257,11 @@ assimilateData <-
            QHt,
            HQHt) {
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-    ratio <- sum(terra::as.matrix(layers$Exposed, wide = TRUE)) / (sum(Infected) + 1e-9) # FIXME: no magic numbers, please.
+    ratio <- terra::global(layers$Exposed, "sum", na.rm = TRUE) / terra::global(layers$Infected, "sum", na.rm = TRUE)
+    if (any(is.nan(ratio), is.na(ratio))) {
+      warning("The ratio of exposed:infected is NA or NaN. This may not be problematic, but requires caution on the part of the user of the software. Proceeding with ratio as zero.")
+      ratio <- 0
+    }
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
 
