@@ -215,8 +215,7 @@ getSVEIRD.SpatRaster <- function(subregions, population, aggregationFactor = NUL
 ##' method is used (though it requries the reader to learn a little more of the
 ##' raster library; a good, a necessary, penalty).
 ##' @title Create a binary reclassification of the input SpatRaster
-##' @param inputRaster A SpatRaster of Susceptible people, or the
-##'   population count data
+##' @param inputRaster A single-layer SpatRaster
 ##' @returns a binary reclassification of the input SpatRaster
 ##' @author Bryce Carson
 classify.binary <- function(inputRaster) {
