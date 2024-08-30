@@ -761,8 +761,8 @@ forecastError.cov <- function(layers,
 ##'   args is a list of named arguments to the function; if it is not a list,
 ##'   the component of the list (before, during, or after) must be a function.
 ##'   See the examples.
-##' @returns a summaryTable dataframe for the simulation, showing changes in the
-##'   compartment values over time, the daily values, and cumulative values.
+##' @returns a list with components table, a tibble, and timeseries, a
+##'   SpatRasterDataset representing timeseries of different variables.
 ##' @author Bryce Carson
 ##' @author Ashok Krishnmaurthy
 ##' @author Michael Myer
@@ -933,6 +933,7 @@ SVEIRD.BayesianDataAssimilation <-
                           summaryTable)
 
     layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
+    timeseries <- sds("names<-"(as.list(layers), names(layers)))
 
     if (dataAssimilationEnabled) {
       if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date)) {
@@ -970,8 +971,6 @@ SVEIRD.BayesianDataAssimilation <-
       HQHt <- matrices.Bayes$HQHt
       QHt <- matrices.Bayes$QHt
     }
-
-    layers.timeseries <- vector(mode = "list", length = n.days)
 
     ## NOTE: execute the "before" callback.
     if (!missing(callback) && hasName(callback, "before")) {
@@ -1088,7 +1087,7 @@ SVEIRD.BayesianDataAssimilation <-
         layers$Exposed <- infectedExposedLayers$Exposed
       }
 
-      layers.timeseries[[today]] <- layers
+      add(timeseries) <- "names<-"(as.list("time<-"(layers, n.days[today])), names(layers))
     }
 
     ## NOTE: execute the "after" callback.
@@ -1107,9 +1106,13 @@ SVEIRD.BayesianDataAssimilation <-
     ## always replace it in our summaryTable table; for some variables it makes sense
     ## that the value is zero (no fatalities, infections, exposures, et cetera),
     ## but why would it be NA (missing) or NaN (not a number)?
-    summaryTable[is.na(summaryTable)] <- 0
+    if (any(is.na(summaryTable))) {
+      summaryTable[is.na(summaryTable)] <- 0
+      warning("NAs in final summary table; replacing with zeroes.")
+    }
+
     return(list(table = tibble::as_tibble(summaryTable),
-                rast = layers))
+                timeseries = timeseries))
   }
 
 ##' Using the provided parameters and SpatRaster, the necessary setup functions
