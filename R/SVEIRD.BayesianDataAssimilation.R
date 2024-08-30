@@ -1274,7 +1274,7 @@ assimilateData <-
     ## NOTE: I did not have great documentation left for myself regarding this.
     ## Why was I concerned about the dimensions? Why was I concerend whether it
     ## was a direct sum or Kronecker sum (or not)?
-    if (getOption("spatialEpisim.debug") && !identical(dim(HQHt), dim(Psi)))
+    if (getOption("spatialEpisim.foundation.debugMessages") && !identical(dim(HQHt), dim(Psi)))
       message("HQHT + diag(Psi) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
 
     ## NOTE: The gain matrix, the Kalman filter, determines how the
