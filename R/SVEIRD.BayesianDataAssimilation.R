@@ -1243,7 +1243,8 @@ setupBayesianDataAssimilation <-
 ##'     Rwampara      1.4053      30.3449
 ##'     Tchomia       1.4412      30.4845
 ##'   }
-##' @param psi.diagonal TODO
+##' @param psi.diagonal A replacement value for elements of the Psi matrix'
+##'   diagonal which are zero.
 ##' @param QHt the [tcrossprod] of the Q and H matrices.
 ##' @param HQHt the product of the H matrix and QHt.
 ##' @returns a list of SpatRasters, the Infected and Exposed SpatRasters
@@ -1257,16 +1258,20 @@ assimilateData <-
            QHt,
            HQHt) {
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-    ratio <- terra::global(layers$Exposed, "sum", na.rm = TRUE) / terra::global(layers$Infected, "sum", na.rm = TRUE)
+    ratio <- as.numeric(terra::global(layers$Exposed, "sum", na.rm = TRUE) / terra::global(layers$Infected, "sum", na.rm = TRUE))
     if (any(is.nan(ratio), is.na(ratio))) {
       warning("The ratio of exposed:infected is NA or NaN. This may not be problematic, but requires caution on the part of the user of the software. Proceeding with ratio as zero.")
       ratio <- 0
     }
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
-
+    ## FIXME DONE: all elements in the Forecast matrix are NaN. TODO:
+    ## investigate why the Prior contains NAs or NaNs.
+    if (any(is.nan(Prior))) {
+      warning("Prior contains NaNs, replacing with zeroes.")
+      Prior[is.nan(Prior)] <- 0
+    }
     Forecast <- linearInterpolationMatrix %*% Prior
-
     ## Create the measurement error covariance matrix.
     Innovation <- as.numeric(incidenceData) - Forecast
 
@@ -1277,7 +1282,9 @@ assimilateData <-
     ## NOTE: I did not have great documentation left for myself regarding this.
     ## Why was I concerned about the dimensions? Why was I concerend whether it
     ## was a direct sum or Kronecker sum (or not)?
-    if (getOption("spatialEpisim.foundation.debugMessages") && !identical(dim(HQHt), dim(Psi)))
+    if (all(!is.null(getOption("spatialEpisim.foundation.debugMessages")),
+            getOption("spatialEpisim.foundation.debugMessages"),
+            !identical(dim(HQHt), dim(Psi))))
       message("HQHT + diag(Psi) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
 
     KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi)
@@ -1291,6 +1298,11 @@ assimilateData <-
     ## when I wrote the first part of this comment a week ago? NOTE: take
     ## the subset of Posterior which is the same size as `layers`? Using single
     ## element subsetting assumes row-major ordering.
+    if (all(!is.null(getOption("spatialEpisim.foundation.debugMessages")),
+            getOption("spatialEpisim.foundation.debugMessages"),
+            !identical(Posterior, dim(layers))))
+      message("Posterior and `layers` don't have the same dimensions, so subsetting Posterior is indeed required.")
+
     I <- matrix(Posterior[seq(terra::nrow(layers) * terra::ncol(layers))],
                 nrow = terra::nrow(layers),
                 ncol = terra::ncol(layers),
@@ -1298,7 +1310,7 @@ assimilateData <-
 
     ## NOTE: if an area is uninhabitable replace its value with zero; it makes
     ## more sense to instead use NA values to prevent calculating values for
-    ## uninhabitable areas.
+    ## uninhabited areas.
     infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I),
                                                             terra::ext(layers)),
                                              terra::crs(layers)),
@@ -1306,16 +1318,25 @@ assimilateData <-
                               maskvalues = 0,
                               updatevalue = 0)
 
+    if (all(is.nan(unique(terra::values(infectious))))) {
+      eachElementOfInfectedIsNaN <- "All values in the Infected compartment update are NaN; that's incorrect!"
+      if (interactive()) {
+        warning(eachElementOfInfectedIsNaN)
+        browser()
+      } else  {
+        stop(eachElementOfInfectedIsNaN)
+      }
+    }
+
     ## MAYBE FIXME: how, exaclty, does the number of compartments reported
-    ## impact the assimilation of the data? What is the influence of the
-    ## number of compartments reported on the overriding of Infected and
-    ## Exposed, if only Infected data is observed? What if Infected and
-    ## Exposed data are observed and assimilated, how is RAT used then?
-    ## Should any changes be made in that case from the usual algorithm?
-    exposures <- ratio * layers$Infected # what is the difference between
-                                       # multiplying ratio against layers$Infected
-                                       # and the wide matrix Infected created at
-                                       # the beginning of this function?
+    ## impact the assimilation of the data? What is the influence of the number
+    ## of compartments reported on the overriding of Infected and Exposed, if
+    ## only Infected data is observed? What if Infected and Exposed data are
+    ## observed and assimilated, how is RAT used then? Should any changes be
+    ## made in that case from the usual algorithm? NOTE: what is the difference
+    ## between multiplying ratio against layers$Infected and the wide matrix
+    ## Infected created at the beginning of this function?
+    exposures <- ratio * layers$Infected
 
     return(list(Infected = infectious, Exposed = exposures))
   }
