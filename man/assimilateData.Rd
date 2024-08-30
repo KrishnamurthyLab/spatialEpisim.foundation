@@ -86,7 +86,8 @@ SVEIRD.BayesianDataAssimilation for more details.
     Tchomia       1.4412      30.4845
   }}
 
-\item{psi.diagonal}{TODO}
+\item{psi.diagonal}{A replacement value for elements of the Psi matrix'
+diagonal which are zero.}
 
 \item{QHt}{the \link{tcrossprod} of the Q and H matrices.}
 

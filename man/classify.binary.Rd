@@ -7,8 +7,7 @@
 classify.binary(inputRaster)
 }
 \arguments{
-\item{inputRaster}{A SpatRaster of Susceptible people, or the
-population count data}
+\item{inputRaster}{A single-layer SpatRaster}
 }
 \value{
 a binary reclassification of the input SpatRaster
