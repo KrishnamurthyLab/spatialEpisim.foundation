@@ -1261,10 +1261,10 @@ assimilateData <-
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
 
-    HForecast <- linearInterpolationMatrix %*% Prior
+    Forecast <- linearInterpolationMatrix %*% Prior
 
     ## Create the measurement error covariance matrix.
-    Innovation <- as.numeric(incidenceData) - HForecast
+    Innovation <- as.numeric(incidenceData) - Forecast
 
     Psi <- as.numeric(incidenceData)
     Psi[Psi < 1] <- psi.diagonal
