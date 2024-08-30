@@ -1453,11 +1453,10 @@ castSeedDataQueensNeighbourhood <-
 ##' an upper bound of some positive number, any number less than that will be
 ##' reclassified to zero.
 ##' @title Reclassify Below Upper Bound
-##' @param spit a SpatRaster to reclassify
+##' @param raster a SpatRaster to reclassify
 ##' @param upper the upper bound, not included in the range of values classified
 ##' @returns the reclassified SpatRaster
 ##' @author Bryce Carson
-reclassifyBelowUpperBound <- function(spit, upper) {
-  ## Spit is a play on the first word in SpatRaster
-  terra::classify(spit, cbind(-Inf, upper, 0), right = FALSE, include.lowest = FALSE)
+reclassifyBelowUpperBound <- function(raster, upper) {
+  terra::classify(raster, cbind(-Inf, upper, 0), right = FALSE, include.lowest = FALSE)
 }
