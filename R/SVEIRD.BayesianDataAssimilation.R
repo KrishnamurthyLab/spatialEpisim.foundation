@@ -1276,9 +1276,7 @@ assimilateData <-
     if (getOption("spatialEpisim.foundation.debugMessages") && !identical(dim(HQHt), dim(Psi)))
       message("HQHT + diag(Psi) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
 
-    ## NOTE: The gain matrix, the Kalman filter, determines how the
-    ## observational data are assimilated.
-    KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi) # NOTE: b in solve is an identity matrix.
+    KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi)
     Posterior <- Prior + KalmanFilter %*% Innovation
     Posterior[Posterior < 0] <- 0
 
