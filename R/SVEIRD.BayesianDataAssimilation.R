@@ -992,7 +992,7 @@ SVEIRD.BayesianDataAssimilation <-
             if (is.function(callback$during$fun) && is.list(callback$during$args))
               do.call(callback$during$fun, args = callback$during$args)
             else
-              simpleError(r"[The "during" callback is malformed.]")
+              simpleError("The `during' callback is malformed.")
           } else if (is.function(callback$during)) {
             callback$during()
           }
