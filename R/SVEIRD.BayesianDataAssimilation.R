@@ -1041,15 +1041,12 @@ SVEIRD.BayesianDataAssimilation <-
                                 updatevalue = 0)
 
       newInfected <- reclassifyBelowUpperBound(gamma * sum(c(layers$Exposed, newExposed)), upper = 1)
-      dailyInfected <- sum(newInfected)
 
       ## Some infectious people are going to either recover or die
       infectious <- reclassifyBelowUpperBound(sum(c(layers$Infected, newInfected)), upper = 1)
       newRecovered <- sigma * infectious
-      dailyRecovered <- sum(newRecovered)
 
       newDead <- reclassifyBelowUpperBound(delta * infectious, upper = 1)
-      dailyDead <- sum(newDead)
 
       layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated), na.rm = TRUE)
       layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated), na.rm = TRUE)
@@ -1091,14 +1088,15 @@ SVEIRD.BayesianDataAssimilation <-
       }
     }
 
-    ## NOTE: NA MAYBE a valid statistical value, it may not be appropriate to
-    ## always replace it in our summaryTable table; for some variables it makes sense
-    ## that the value is zero (no fatalities, infections, exposures, et cetera),
-    ## but why would it be NA (missing) or NaN (not a number)?
-    if (any(is.na(summaryTable))) {
-      summaryTable[is.na(summaryTable)] <- 0
-      warning("NAs in final summary table; replacing with zeroes.")
-    }
+    summaryTable %<>%
+      dplyr::mutate(newV = dplyr::lead(V) - V,
+                    newE = dplyr::lead(E) - E,
+                    newI = dplyr::lead(I) - I,
+                    newR = dplyr::lead(R) - R,
+                    newD = dplyr::lead(D) - D,
+                    cumE = dplyr::first(E) + cumsum(newE),
+                    cumI = dplyr::first(I) + cumsum(dplyr::case_when(newI > 0 ~ newI, .default = 0)))
+
     stopifnot(unique(terra::nlyr(timeseries)) == n.days + 1)
     terra::time(timeseries) <- lubridate::date(startDate) +
       seq(from = 0, length.out = unique(terra::nlyr(timeseries)))
