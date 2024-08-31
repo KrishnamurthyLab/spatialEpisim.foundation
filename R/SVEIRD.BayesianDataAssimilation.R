@@ -1034,26 +1034,11 @@ SVEIRD.BayesianDataAssimilation <-
               !(uniqueInfectionLikelihoods > 1)))
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
-      ## TODO: evaluate the difference between the following forms.
-      ## NOTE: transmission likelihoods is the force of infection.
-      ## growth <- matrix(as.vector(beta * proportionSusceptible) *
-      ##                  as.vector(transmissionLikelihoods),
-      ##                  nrow = nrow(layers),
-      ##                  ncol = ncol(layers),
-      ##                  byrow = TRUE)
-      ## MAYBE use the following form instead; conversion to matrices and
-      ## vectors may not be necessary; type coercion takes time.
       growth <- beta * proportionSusceptible * transmissionLikelihoods
-
-      ## TODO: stochasticity is not properly implemented yet; it was not fully
-      ## supported in the previous implementation. It's likely that using
-      ## stochasticity now will (still) produce an error.
-      newExposed <- if(simulationIsDeterministic) growth else stats::rpois(1, growth)
-      ## NOTE: any indices of these objects which were less than one will be the
-      ## same indices that are set to zero in the newExposed object.
-      indices <- c(proportionSusceptible < 1, transmissionLikelihoods < 1)
-      newExposed <- terra::mask(newExposed, indices, maskvalues = TRUE, updatevalue = 0)
-      dailyExposed <- sum(newExposed)
+      newExposed <- terra::mask(if(simulationIsDeterministic) growth else stats::rpois(1, growth),
+                                c(proportionSusceptible < 1, transmissionLikelihoods < 1),
+                                maskvalues = TRUE,
+                                updatevalue = 0)
 
       newInfected <- reclassifyBelowUpperBound(gamma * sum(c(layers$Exposed, newExposed)), upper = 1)
       dailyInfected <- sum(newInfected)
