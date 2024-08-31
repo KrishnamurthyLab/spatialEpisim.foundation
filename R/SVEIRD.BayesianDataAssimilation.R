@@ -1058,8 +1058,9 @@ SVEIRD.BayesianDataAssimilation <-
       layers$Recovered   <- sum(c(layers$Recovered, newRecovered), na.rm = TRUE)
       layers$Dead        <- sum(c(layers$Dead, newDead), na.rm = TRUE)
 
-      if (dataAssimilationEnabled && summaryTable$Date[[today]] %in% incidenceData$Date) {
-        todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable$Date[[today]]))[, -c(1, 2)]
+
+      if (dataAssimilationEnabled && summaryTable[today, "Date"] %in% incidenceData$Date) {
+        todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable[today, "Date"]))[, -c(1, 2)]
         infectedExposedLayers <-
           assimilateData(layers,
                          linearInterpolationMatrix,
