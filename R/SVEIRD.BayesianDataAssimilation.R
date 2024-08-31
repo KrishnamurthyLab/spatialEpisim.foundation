@@ -933,7 +933,7 @@ SVEIRD.BayesianDataAssimilation <-
                           summaryTable)
 
     layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
-    timeseries <- sds("names<-"(as.list(layers), names(layers)))
+    timeseries <- terra::sds("names<-"(as.list(layers), names(layers)))
 
     if (dataAssimilationEnabled) {
       if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date)) {
@@ -1087,7 +1087,10 @@ SVEIRD.BayesianDataAssimilation <-
         layers$Exposed <- infectedExposedLayers$Exposed
       }
 
-      add(timeseries) <- "names<-"(as.list("time<-"(layers, n.days[today])), names(layers))
+      for(layer in names(layers)) {
+        i <- which(layer == names(layers))
+        terra::add(timeseries[i]) <- layers[layer]
+      }
     }
 
     ## NOTE: execute the "after" callback.
@@ -1110,6 +1113,9 @@ SVEIRD.BayesianDataAssimilation <-
       summaryTable[is.na(summaryTable)] <- 0
       warning("NAs in final summary table; replacing with zeroes.")
     }
+    stopifnot(unique(terra::nlyr(timeseries)) == n.days + 1)
+    terra::time(timeseries) <- lubridate::date(startDate) +
+      seq(from = 0, length.out = unique(terra::nlyr(timeseries)))
 
     return(list(table = tibble::as_tibble(summaryTable),
                 timeseries = timeseries))
