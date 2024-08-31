@@ -1051,12 +1051,12 @@ SVEIRD.BayesianDataAssimilation <-
       newDead <- reclassifyBelowUpperBound(delta * infectious, upper = 1)
       dailyDead <- sum(newDead)
 
-      layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated))
-      layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated))
-      layers$Exposed     <- sum(c(layers$Exposed, newExposed, -1 * newInfected))
-      layers$Infected    <- sum(c(layers$Infected, newInfected, -1 * newDead, -1 * newRecovered))
-      layers$Recovered   <- sum(c(layers$Recovered, newRecovered))
-      layers$Dead        <- sum(c(layers$Dead, newDead))
+      layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated), na.rm = TRUE)
+      layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated), na.rm = TRUE)
+      layers$Exposed     <- sum(c(layers$Exposed, newExposed, -1 * newInfected), na.rm = TRUE)
+      layers$Infected    <- sum(c(layers$Infected, newInfected, -1 * newDead, -1 * newRecovered), na.rm = TRUE)
+      layers$Recovered   <- sum(c(layers$Recovered, newRecovered), na.rm = TRUE)
+      layers$Dead        <- sum(c(layers$Dead, newDead), na.rm = TRUE)
 
       if (dataAssimilationEnabled && summaryTable$Date[[today]] %in% incidenceData$Date) {
         todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable$Date[[today]]))[, -c(1, 2)]
