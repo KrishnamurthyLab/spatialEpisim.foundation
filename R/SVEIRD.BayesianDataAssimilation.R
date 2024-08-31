@@ -789,44 +789,20 @@ forecastError.cov <- function(layers,
 ##' data("initialInfections.fourCities", package = "spatialEpisim.foundation")
 ##' data("Congo.EbolaIncidence", package = "spatialEpisim.foundation")
 ##' rasterAggregationFactor = 9
-##' simluation.days <- 20
-##' if (requireNamespace("cli", quiet = TRUE)) {
+##' simulation.days <- 31
+##' if (requireNamespace("cli", quietly = TRUE)) {
 ##'   callback <- list(before = list(fun = cli::cli_progress_bar,
 ##'                                  args = list(name = "Simulating epidemic (SEI-type)",
-##'                                              total = simluation.days)),
+##'                                              total = simulation.days)),
 ##'                    during = cli::cli_progress_update,
 ##'                    after = cli::cli_progress_done)
 ##' } else {
 ##'   callback <- "{" # does nothing
 ##' }
-##' SVEIRD.BayesianDataAssimilation(
-##'   ## Parameters
-##'   alpha = 3.5e-5,
-##'   beta = 7e-3,
-##'   gamma = 1/7,
-##'   sigma = 1/36,
-##'   delta = 2/36,
-##'   lambda = 18,
-##'   ## Model runtime
-##'   n.days = simluation.days, # a month, permitting three assimilations of observed data
-##'   ## Model data
-##'   seedData = initialInfections.fourCities,
-##'   neighbourhood.order = 1,
-##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
-##'                                 susceptibleSpatRaster,
-##'                                 aggregationFactor = rasterAggregationFactor),
-##'   aggregationFactor = rasterAggregationFactor,
-##'   startDate = "2018-08-01",
-##'   countryCodeISO3C = "COD",
-##'   ## Model options
-##'   simulationIsDeterministic = TRUE,
-##'   dataAssimilationEnabled = FALSE,
-##'   callback = callback
-##' )
-##'
-##' ## A large, lengthy simulation with Bayesian data assimilation (runtime
-##' ## approximately four minutes).
-##' simulation.days <- 532
+##' aggregatedCongoSubregions <-
+##'   getSVEIRD.SpatRaster(subregionsSpatVector,
+##'                        susceptibleSpatRaster,
+##'                        aggregationFactor = rasterAggregationFactor)
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -840,13 +816,37 @@ forecastError.cov <- function(layers,
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   neighbourhood.order = 1,
-##'   layers = getSVEIRD.SpatRaster(subregionsSpatVector,
-##'                                 susceptibleSpatRaster,
-##'                                 aggregationFactor = rasterAggregationFactor),
+##'   layers = aggregatedCongoSubregions,
 ##'   aggregationFactor = rasterAggregationFactor,
 ##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
-##'   incidenceData = Congo.EbolaIncidence,
+##'   ## Model options
+##'   simulationIsDeterministic = TRUE,
+##'   dataAssimilationEnabled = FALSE,
+##'   callback = callback
+##' )
+##'
+##' ## A large, lengthy simulation with Bayesian data assimilation (runtime
+##' ## approximately four minutes).
+##' simulation.days <- 28
+##' SVEIRD.BayesianDataAssimilation(
+##'   ## Parameters
+##'   alpha = 3.5e-5,
+##'   beta = 7e-3,
+##'   gamma = 1/7,
+##'   sigma = 1/36,
+##'   delta = 2/36,
+##'   lambda = 18,
+##'   ## Model runtime
+##'   n.days = simulation.days,
+##'   ## Model data
+##'   seedData = initialInfections.fourCities,
+##'   neighbourhood.order = 1,
+##'   layers = aggregatedCongoSubregions,
+##'   aggregationFactor = rasterAggregationFactor,
+##'   startDate = "2018-08-01",
+##'   countryCodeISO3C = "COD",
+##'   incidenceData = head(Congo.EbolaIncidence, n = 4),
 ##'   ## Model options
 ##'   simulationIsDeterministic = TRUE,
 ##'   dataAssimilationEnabled = TRUE,
