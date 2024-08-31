@@ -190,7 +190,7 @@ originalCodeResults <- {
 ## milliseconds
 ##       min       lq    mean   median       uq      max neval
 ##  249.4146 274.3294 317.667 282.7732 311.4679 516.9176   100
-newCodeResults <- {
+newCodeResults <- function() {
   layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
     susceptibleSpatRaster,
     aggregationFactor = rasterAggregationFactor
@@ -243,12 +243,16 @@ test_that("Forecast error covariance (Q) matrix is correct", {
       lapply(expect_equal, expected = QVar)
   })
 
-  ## Likewise, expect that the (assumedly single) unique value on the diagonal
-  ## is equal to QVar.
-  lapply(newCodeResults$No.neighborhood, diag) %>%
-    lapply(unique) %>%
-    lapply(expect_equal, expected = QVar)
-  lapply(newCodeResults$Moore.neighborhood, diag) %>%
-    lapply(unique) %>%
-    lapply(expect_equal, expected = QVar)
+  ## See issue #17, as to why I prevent R CMD check from running this.
+  if (!is_checking()) {
+    newCodeResults <- newCodeResults()
+    ## Likewise, expect that the (assumedly single) unique value on the diagonal
+    ## is equal to QVar.
+    lapply(newCodeResults$No.neighborhood, diag) %>%
+      lapply(unique) %>%
+      lapply(expect_equal, expected = QVar)
+    lapply(newCodeResults$Moore.neighborhood, diag) %>%
+      lapply(unique) %>%
+      lapply(expect_equal, expected = QVar)
+  }
 })
