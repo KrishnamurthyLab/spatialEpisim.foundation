@@ -544,7 +544,7 @@ linearInterpolationOperator <- function(layers,
 ##' @param forecastError.cor.length "correlation length (i.e. the average size
 ##'   of the fluctuations)," as stated by J. Murray on the Physics
 ##'   StackExchange, <https://physics.stackexchange.com/a/671317>.
-##' @param neighbourhood TODO
+##' @param neighbourhood.Bayes TODO
 ##' @param compartmentsReported TODO
 ##' @returns TODO
 ##' @author Bryce Carson
@@ -584,7 +584,7 @@ forecastError.cov <- function(layers,
                               variableCovarianceFunction,
                               forecastError.cov.sdBackground,
                               forecastError.cor.length,
-                              neighbourhood,
+                              neighbourhood.Bayes,
                               compartmentsReported = 2) {
   validFunctions <- c("DBD", "Balgovind", "Exponential", "Gaussian", "Spherical")
   if (!any(variableCovarianceFunction == validFunctions))
@@ -637,8 +637,8 @@ forecastError.cov <- function(layers,
              varMatrix
            })
 
-  forecastErrorCovariance[decay < neighbourhood] <-
-    varCov.fun()[decay < neighbourhood]
+  forecastErrorCovariance[decay < neighbourhood.Bayes] <-
+    varCov.fun()[decay < neighbourhood.Bayes]
   Matrix::diag(forecastErrorCovariance) <-
     ifelse(Matrix::diag(forecastErrorCovariance) == 0,
            forecastError.cov.sdBackground,
@@ -1134,10 +1134,14 @@ SVEIRD.BayesianDataAssimilation <-
 ##'   reported on; either one or two. Higher numbers are not supported. One
 ##'   corresponds only to infection, while two compartments corresponds to
 ##'   exposure and infection.
-##' @param variableCovarianceFunction a function to calculate the error covariance, returned by Q.forecastErrorCov.
-##' @param forecastError.cov.sdBackground the "background" or default amount of error, in standard deviations.
-##' @param forecastError.cor.length TODO
-##' @param neighbourhood TODO
+##' @param variableCovarianceFunction a function to calculate the error
+##'   covariance, passed to [forecastError.cov].
+##' @param forecastError.cov.sdBackground the "background" or default amount of
+##'   error, in standard deviations.
+##' @param forecastError.cor.length see the description of this argument in
+##'   [forecastError.cov].
+##' @param neighbourhood.Bayes the order of the "neighbourhood"; passed to
+##'   [forecastError.cov].
 ##' @returns the HQHt matrix
 ##' @author Bryce Carson
 setupBayesianDataAssimilation <-
@@ -1147,7 +1151,7 @@ setupBayesianDataAssimilation <-
            variableCovarianceFunction,
            forecastError.cov.sdBackground,
            forecastError.cor.length,
-           neighbourhood) {
+           neighbourhood.Bayes) {
     ## Generate the linear interpolation operator matrix (function works for
     ## two compartments, at most).
     H <- linearInterpolationMatrix <-
@@ -1166,7 +1170,7 @@ setupBayesianDataAssimilation <-
                         variableCovarianceFunction,
                         forecastError.cov.sdBackground,
                         forecastError.cor.length,
-                        neighbourhood,
+                        neighbourhood.Bayes,
                         compartmentsReported)
     ## MAYBE FIXME: replace with Matrix::tcrossprod which is more efficient.
     QHt <- forecastErrorCovariance %*% Matrix::t(H) # MAYBE TODO: alias these with better names.

@@ -11,7 +11,7 @@ setupBayesianDataAssimilation(
   variableCovarianceFunction,
   forecastError.cov.sdBackground,
   forecastError.cor.length,
-  neighbourhood
+  neighbourhood.Bayes
 )
 }
 \arguments{
@@ -27,13 +27,17 @@ reported on; either one or two. Higher numbers are not supported. One
 corresponds only to infection, while two compartments corresponds to
 exposure and infection.}
 
-\item{variableCovarianceFunction}{a function to calculate the error covariance, returned by Q.forecastErrorCov.}
+\item{variableCovarianceFunction}{a function to calculate the error
+covariance, passed to \link{forecastError.cov}.}
 
-\item{forecastError.cov.sdBackground}{the "background" or default amount of error, in standard deviations.}
+\item{forecastError.cov.sdBackground}{the "background" or default amount of
+error, in standard deviations.}
 
-\item{forecastError.cor.length}{TODO}
+\item{forecastError.cor.length}{see the description of this argument in
+\link{forecastError.cov}.}
 
-\item{neighbourhood}{TODO}
+\item{neighbourhood.Bayes}{the order of the "neighbourhood"; passed to
+\link{forecastError.cov}.}
 }
 \value{
 the HQHt matrix

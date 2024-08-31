@@ -9,7 +9,7 @@ forecastError.cov(
   variableCovarianceFunction,
   forecastError.cov.sdBackground,
   forecastError.cor.length,
-  neighbourhood,
+  neighbourhood.Bayes,
   compartmentsReported = 2
 )
 }
@@ -28,7 +28,7 @@ the covariances of the forecast covariance error matrix.}
 of the fluctuations)," as stated by J. Murray on the Physics
 StackExchange, \url{https://physics.stackexchange.com/a/671317}.}
 
-\item{neighbourhood}{TODO}
+\item{neighbourhood.Bayes}{TODO}
 
 \item{compartmentsReported}{TODO}
 }
