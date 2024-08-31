@@ -1085,7 +1085,7 @@ SVEIRD.BayesianDataAssimilation <-
         if (is.function(callback$after$fun) && is.list(callback$after$args))
           do.call(callback$after$fun, args = callback$after$args)
         else
-          simpleError(r"[The "after" callback is malformed.]")
+          simpleError("The \"after\" callback is malformed.")
       } else if (is.function(callback$after)) {
         callback$after()
       }
