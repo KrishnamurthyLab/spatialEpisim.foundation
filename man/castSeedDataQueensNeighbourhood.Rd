@@ -3,7 +3,7 @@
 \name{castSeedDataQueensNeighbourhood}
 \alias{castSeedDataQueensNeighbourhood}
 \title{Seed the initial infections, and other compartments, in a spatial
-simluation}
+simulation}
 \usage{
 castSeedDataQueensNeighbourhood(layers, seedData, neighbourhood.order)
 }
