@@ -1305,13 +1305,10 @@ assimilateData <-
                 ncol = terra::ncol(layers),
                 byrow = TRUE)
 
-    ## NOTE: if an area is uninhabitable replace its value with zero; it makes
-    ## more sense to instead use NA values to prevent calculating values for
-    ## uninhabited areas.
     infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I),
                                                             terra::ext(layers)),
                                              terra::crs(layers)),
-                              classify.binary(layers$Susceptible),
+                              classify.binary(layers$Susceptible), # Inhabitated
                               maskvalues = 0,
                               updatevalue = 0)
 
@@ -1347,7 +1344,7 @@ assimilateData <-
 ##'
 ##' The Moore neighbourhood is calculated using a simple arithmetical algorithm.
 ##' @title Seed the initial infections, and other compartments, in a spatial
-##'   simluation
+##'   simulation
 ##' @param seedData a dataframe like the following example; the compartment
 ##'   columns are the initial values.
 ##'
