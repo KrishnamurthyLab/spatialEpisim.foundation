@@ -40,3 +40,22 @@ test_that("Population remains the same after cropping and aggregation", {
   expect_equal(sum(terra::global(terra::aggregate(Congo, 10, "sum", na.rm = TRUE), "sum", na.rm = TRUE), na.rm = TRUE),
                expected = sum(terra::global(Congo, "sum", na.rm = TRUE), na.rm = TRUE))
 })
+
+test_that("Matrix::tcrossprod is the same as Q %*% t(H)", {
+  layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
+                                 susceptibleSpatRaster,
+                                 aggregationFactor = 12)
+  Q <- Ituri.forecastError.cov <-
+    forecastError.cov(layers,
+                      variableCovarianceFunction = "DBD",
+                      forecastError.cov.sdBackground = 2,
+                      forecastError.cor.length = 0.8,
+                      neighbourhood = 1,
+                      compartmentsReported = 2)
+  H <- suppressWarnings(
+    linearInterpolationOperator(layers = layers,
+                                healthZoneCoordinates = healthZonesCongo,
+                                compartmentsReported = 2)
+  )
+  expect_equal(Matrix::tcrossprod(Q, H), expected = Q %*% t(H))
+})

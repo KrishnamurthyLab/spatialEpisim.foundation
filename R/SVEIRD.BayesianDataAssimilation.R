@@ -319,6 +319,9 @@ averageEuclideanDistance <-
 ##' When used to creat an interpolation matrix for two state vectors, the result
 ##'   is a block diagonal matrix of identical partitions, with each partition as
 ##'   described for one state vector.
+##'
+##' The dimensions of the returned matrix are nrow(healthZoneCoordinates) rows
+##'   by ncell(layers) columns.
 ##' @param layers The SpatRaster object with SVEIRD compartment layers, and a
 ##'   layer classifying habitation. Created with the getSVEIRD.SpatRaster
 ##'   function.
@@ -1135,7 +1138,7 @@ setupBayesianDataAssimilation <-
     ## NOTE: create the model error covariance matrix, which, given we are
     ## using an ensemble-type data assimilation process, is time invariant.
     ## Immediately it is used to calculate QHt, and otherwise is unused.
-    forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
+    Q <- forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
       forecastError.cov(layers,
                         variableCovarianceFunction,
                         forecastError.cov.sdBackground,
@@ -1143,7 +1146,7 @@ setupBayesianDataAssimilation <-
                         neighbourhood.Bayes,
                         compartmentsReported)
     ## MAYBE FIXME: replace with Matrix::tcrossprod which is more efficient.
-    QHt <- forecastErrorCovariance %*% Matrix::t(H) # MAYBE TODO: alias these with better names.
+    QHt <- Q %*% Matrix::t(H)
     HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
 
     ## NOTE: this is based on old, dead code from the previous implementation,
@@ -1151,7 +1154,7 @@ setupBayesianDataAssimilation <-
     ## asked in July 2019: https://codereview.stackexchange.com/q/224536. It
     ## probably isn't necessary to retain, but it's here. Ashok can make a
     ## decision about its usage later.
-    ## stopifnot(sum(eigen(forecastErrorCovariance)$values) == ncell(layers))
+    ## stopifnot(sum(eigen(Q)$values) == ncell(layers))
 
     return(list(QHt = QHt, HQHt = HQHt, H = H))
   }

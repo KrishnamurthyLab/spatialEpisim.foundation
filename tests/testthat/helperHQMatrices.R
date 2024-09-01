@@ -1,24 +1,9 @@
-subregionsSpatVector <-
-  terra::vect(
-           system.file(
-             "extdata",
-             ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
-             "subregionsSpatVector",
-             package = "spatialEpisim.foundation",
-             mustWork = TRUE
-           )
-         )
-susceptibleSpatRaster <-
-  terra::rast(
-           system.file(
-             "extdata",
-             "susceptibleSpatRaster.tif", # Congo population
-             package = "spatialEpisim.foundation",
-             mustWork = TRUE
-           )
-         )
-data("healthZonesCongo", package = "spatialEpisim.foundation")
-data("initialInfections.fourCities", package = "spatialEpisim.foundation")
+pkg <- "spatialEpisim.foundation"
+data("healthZonesCongo", package = pkg)
+data("initialInfections.fourCities", package = pkg)
+extdata <- function(file) system.file("extdata", file, package = pkg, mustWork = TRUE)
+subregionsSpatVector <- terra::vect(extdata("subregionsSpatVector"))
+susceptibleSpatRaster <- terra::rast(extdata("susceptibleSpatRaster.tif"))
 
 suppressPackageStartupMessages({
   require("Matrix")
