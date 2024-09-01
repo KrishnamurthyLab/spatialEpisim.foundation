@@ -1115,7 +1115,7 @@ SVEIRD.BayesianDataAssimilation <-
 ##'   [forecastError.cov].
 ##' @param neighbourhood.Bayes the order of the "neighbourhood"; passed to
 ##'   [forecastError.cov].
-##' @returns the HQHt matrix
+##' @returns a list with components QHt, HQHt, and H.
 ##' @author Bryce Carson
 setupBayesianDataAssimilation <-
   function(layers,
@@ -1125,19 +1125,12 @@ setupBayesianDataAssimilation <-
            forecastError.cov.sdBackground,
            forecastError.cor.length,
            neighbourhood.Bayes) {
-    ## Generate the linear interpolation operator matrix (function works for
-    ## two compartments, at most).
     H <- linearInterpolationMatrix <-
       linearInterpolationOperator(layers,
                                   healthZoneCoordinates,
                                   compartmentsReported)
 
-    ## NOTE: forecastErrorCovariance and H are both block diagonal, sparse matrices (but not of
-    ## class sparseMatrix:
-    ## <https://stat.ethz.ch/R-manual/R-patched/library/Matrix/html/sparseMatrix-class.html>).
-    ## NOTE: create the model error covariance matrix, which, given we are
-    ## using an ensemble-type data assimilation process, is time invariant.
-    ## Immediately it is used to calculate QHt, and otherwise is unused.
+    ## NOTE: the model error covariance matrix is time-invariant.
     Q <- forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
       forecastError.cov(layers,
                         variableCovarianceFunction,
@@ -1145,17 +1138,8 @@ setupBayesianDataAssimilation <-
                         forecastError.cor.length,
                         neighbourhood.Bayes,
                         compartmentsReported)
-    ## MAYBE FIXME: replace with Matrix::tcrossprod which is more efficient.
-    QHt <- Q %*% Matrix::t(H)
-    HQHt <- H %*% QHt # MAYBE TODO: alias these with better names.
-
-    ## NOTE: this is based on old, dead code from the previous implementation,
-    ## and also based on commented code from a StackOverflow question Ashok
-    ## asked in July 2019: https://codereview.stackexchange.com/q/224536. It
-    ## probably isn't necessary to retain, but it's here. Ashok can make a
-    ## decision about its usage later.
-    ## stopifnot(sum(eigen(Q)$values) == ncell(layers))
-
+    QHt <- Matrix::tcrossprod(Q, H)
+    HQHt <- H %*% QHt
     return(list(QHt = QHt, HQHt = HQHt, H = H))
   }
 

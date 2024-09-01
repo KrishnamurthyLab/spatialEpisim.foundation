@@ -42,20 +42,9 @@ test_that("Population remains the same after cropping and aggregation", {
 })
 
 test_that("Matrix::tcrossprod is the same as Q %*% t(H)", {
-  layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
-                                 susceptibleSpatRaster,
-                                 aggregationFactor = 12)
-  Q <- Ituri.forecastError.cov <-
-    forecastError.cov(layers,
-                      variableCovarianceFunction = "DBD",
-                      forecastError.cov.sdBackground = 2,
-                      forecastError.cor.length = 0.8,
-                      neighbourhood = 1,
-                      compartmentsReported = 2)
-  H <- suppressWarnings(
-    linearInterpolationOperator(layers = layers,
-                                healthZoneCoordinates = healthZonesCongo,
-                                compartmentsReported = 2)
-  )
   expect_equal(Matrix::tcrossprod(Q, H), expected = Q %*% t(H))
+})
+
+test_that("The sum of the eigen values is equal to the number of raster cells", {
+  expect_equal(sum(eigen(Q)$values), expected = terra::ncell(layers))
 })

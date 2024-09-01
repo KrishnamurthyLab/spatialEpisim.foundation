@@ -222,3 +222,19 @@ createRasterStack <- function(selectedCountry, rasterAgg, isCropped = F, level1N
 
     return(returnList)
   }
+
+layers <- getSVEIRD.SpatRaster(subregionsSpatVector,
+                               susceptibleSpatRaster,
+                               aggregationFactor = 12)
+Q <- Ituri.forecastError.cov <-
+    forecastError.cov(layers,
+                      variableCovarianceFunction = "DBD",
+                      forecastError.cov.sdBackground = 2,
+                      forecastError.cor.length = 0.8,
+                      neighbourhood = 1,
+                      compartmentsReported = 1)
+  H <- suppressWarnings(
+    linearInterpolationOperator(layers = layers,
+                                healthZoneCoordinates = healthZonesCongo,
+                                compartmentsReported = 1)
+  )
