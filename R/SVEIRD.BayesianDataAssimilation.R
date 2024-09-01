@@ -496,34 +496,20 @@ linearInterpolationOperator <- function(layers,
     }
   }
 
-  ## TODO: move the following NOTE to a better place than here; perhaps to the
-  ## function documentation details. This should be tested using automatic
-  ## testing with various input values. NOTE: this corresponds to the
-  ## hand-written note I made after discussionwith Ashok. He told me that the
-  ## sum of all cells needs to be equivalent to one; the sum of all cells is
-  ## per-health zone, ergo the first condition checks that the sum of the entire
-  ## matrix (with nrow := health zones) is the same as the number of health
-  ## zones (because each should sum to one). NOTE: each row corresponds to one
-  ## of the neighourhoods pictures in the plots "ashok.png" or "me.png".
   stopifnot(dplyr::near(sum(H), nrow(healthZoneCoordinates)))
   stopifnot(dplyr::near(sum(matrix(H[1, ],
                                    ncol = ncol(layers),
                                    byrow = TRUE)),
                         1))
 
-  ## NOTE: the extended areas of the matrix are now dropped to return the matrix
-  ## to the expected size for the input.
-  H <-
-    apply(X = H,
-          MARGIN = 1, # apply the function to rows
-          FUN =
-            function(row) {
-              m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
-              m[(extend.length + 1):(base::nrow(m) - extend.length),
-              (extend.length + 1):(base::ncol(m) - extend.length)] %>%
-                Matrix::t() %>% # row-major order (byrow)
-                as.vector()
-            }) %>% Matrix::t() # rows should be health zones
+  dropExtendedArea <- function(row) {
+    m <- matrix(row, byrow = TRUE, ncol = ncol(layers))
+    m[(extend.length + 1):(base::nrow(m) - extend.length),
+    (extend.length + 1):(base::ncol(m) - extend.length)] %>%
+      Matrix::t() %>% # row-major order (byrow)
+      as.vector()
+  }
+  H <- Matrix::t(apply(X = H, MARGIN = 1, FUN = dropExtendedArea))
 
   if (compartmentsReported == 2) H <- as.matrix(Matrix::bdiag(H, H))
 
@@ -1249,31 +1235,26 @@ setupBayesianDataAssimilation <-
 assimilateData <-
   function(layers,
            linearInterpolationMatrix,
-           incidenceData,
+           prevalenceData,
            healthZoneCoordinates,
            psi.diagonal,
            QHt,
            HQHt) {
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
-    ratio <- as.numeric(terra::global(layers$Exposed, "sum", na.rm = TRUE) / terra::global(layers$Infected, "sum", na.rm = TRUE))
-    if (any(is.nan(ratio), is.na(ratio))) {
-      warning("The ratio of exposed:infected is NA or NaN. This may not be problematic, but requires caution on the part of the user of the software. Proceeding with ratio as zero.")
-      ratio <- 0
-    }
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
     ## FIXME DONE: all elements in the Forecast matrix are NaN. TODO:
-    ## investigate why the Prior contains NAs or NaNs.
+    ## investigate why the Prior contains NaNs.
     if (any(is.nan(Prior))) {
       warning("Prior contains NaNs, replacing with zeroes.")
       Prior[is.nan(Prior)] <- 0
     }
     Forecast <- linearInterpolationMatrix %*% Prior
     ## Create the measurement error covariance matrix.
-    Innovation <- as.numeric(incidenceData) - Forecast
+    Innovation <- as.numeric(prevalenceData) - Forecast
 
-    Psi <- as.numeric(incidenceData)
-    Psi[Psi < 1] <- psi.diagonal
+    Psi <- as.numeric(prevalenceData)
+    Psi[Psi == 0] <- psi.diagonal
     Psi <- diag(Psi)
 
     ## NOTE: I did not have great documentation left for myself regarding this.
@@ -1300,19 +1281,20 @@ assimilateData <-
             !identical(Posterior, dim(layers))))
       message("Posterior and `layers` don't have the same dimensions, so subsetting Posterior is indeed required.")
 
-    I <- matrix(Posterior[seq(terra::nrow(layers) * terra::ncol(layers))],
-                nrow = terra::nrow(layers),
-                ncol = terra::ncol(layers),
-                byrow = TRUE)
+    updatedSpatRaster <-
+      matrix(Posterior[seq(terra::nrow(layers) * terra::ncol(layers))],
+             nrow = terra::nrow(layers),
+             ncol = terra::ncol(layers),
+             byrow = TRUE) %>%
+      terra::rast() %>%
+      terra::"ext<-"(terra::ext(layers)) %>%
+      terra::"crs<-"(terra:crs(layers)) %>%
+      terra::mask(classify.binary(layers$Susceptible), # Inhabited
+                  maskvalues = 0,
+                  updatevalue = 0) %>%
+      "name<-"("Infected")
 
-    infectious <- terra::mask(terra::"crs<-"(terra::"ext<-"(terra::rast(I),
-                                                            terra::ext(layers)),
-                                             terra::crs(layers)),
-                              classify.binary(layers$Susceptible), # Inhabitated
-                              maskvalues = 0,
-                              updatevalue = 0)
-
-    if (all(is.nan(unique(terra::values(infectious))))) {
+    if (all(is.nan(unique(terra::values(updatedSpatRaster))))) {
       eachElementOfInfectedIsNaN <- "All values in the Infected compartment update are NaN; that's incorrect!"
       if (interactive()) {
         warning(eachElementOfInfectedIsNaN)
@@ -1322,17 +1304,16 @@ assimilateData <-
       }
     }
 
-    ## MAYBE FIXME: how, exaclty, does the number of compartments reported
-    ## impact the assimilation of the data? What is the influence of the number
-    ## of compartments reported on the overriding of Infected and Exposed, if
-    ## only Infected data is observed? What if Infected and Exposed data are
-    ## observed and assimilated, how is RAT used then? Should any changes be
-    ## made in that case from the usual algorithm? NOTE: what is the difference
-    ## between multiplying ratio against layers$Infected and the wide matrix
-    ## Infected created at the beginning of this function?
-    exposures <- ratio * layers$Infected
-
-    return(list(Infected = infectious, Exposed = exposures))
+    ## DONE: in previous commits there was a question here; my answer to that
+    ## question is, "Exposed data should be assimilated before preserving the
+    ## ratio of the forecast and the analysis of the exposed and infected
+    ## compartments; the forecast of exposures should be replaced with the
+    ## observed data prior to preserving the ratio of exposed to infected".
+    return("names<-"(c(updatedSpatRaster,
+                       terra::classify((layers$Exposed * updatedSpatRaster) / layers$Infected,
+                                       rbind(cbind(NA, 0),
+                                             cbind(NaN, 0)))),
+                     c("Infected", "Exposed")))
   }
 
 ##' The Moore neighbourhood around the locations given in the seed data is
