@@ -7,7 +7,7 @@
 assimilateData(
   layers,
   linearInterpolationMatrix,
-  incidenceData,
+  prevalenceData,
   healthZoneCoordinates,
   psi.diagonal,
   QHt,
@@ -25,7 +25,7 @@ matrix for use with one state vector). The matrix is either a trivial
 matrix as described elsewhere (see \link{linearInterpolationOperator}), or two
 partitions in a sparse, block diagonal matrix.}
 
-\item{incidenceData}{A "situation report" dataframe. The first column
+\item{prevalenceData}{A "situation report" dataframe. The first column
 provides the date of the officially reported, observed incidence of the
 disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 parameter to be one week prior to the first observed data?
@@ -94,7 +94,7 @@ diagonal which are zero.}
 \item{HQHt}{the product of the H matrix and QHt.}
 }
 \value{
-a list of SpatRasters, the Infected and Exposed SpatRasters
+a SpatRaster with Infected and Exposed compartment layers.
 }
 \description{
 Assimilation of data (Bayesian) using optimal statistical inference, a

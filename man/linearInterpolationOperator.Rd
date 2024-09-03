@@ -77,6 +77,9 @@ described, or two partitions in a sparse, block diagonal matrix.
 When used to creat an interpolation matrix for two state vectors, the result
 is a block diagonal matrix of identical partitions, with each partition as
 described for one state vector.
+
+The dimensions of the returned matrix are nrow(healthZoneCoordinates) rows
+by ncell(layers) columns.
 }
 \examples{
 subregionsSpatVector <- terra::vect(
