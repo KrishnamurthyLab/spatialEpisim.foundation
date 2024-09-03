@@ -945,20 +945,22 @@ SVEIRD.BayesianDataAssimilation <-
         ## } else if (dplyr::last(deathData$Date) < dplyr::last(summaryTable$Date)) {
         ## }
       }
-
-      matrices.Bayes <-
-        setupBayesianDataAssimilation(
-          layers,
-          healthZoneCoordinates,
-          compartmentsReported <- sum(!missing(incidenceData), !missing(deathData)),
-          variableCovarianceFunction,
-          forecastError.cov.sdBackground,
-          forecastError.cor.length,
-          neighbourhood.Bayes
-        )
-      H <- linearInterpolationMatrix <- matrices.Bayes$H
-      HQHt <- matrices.Bayes$HQHt
-      QHt <- matrices.Bayes$QHt
+      ## Create values needed for Bayesian data assimilation
+      compartmentsReported <- sum(!missing(incidenceData), !missing(deathData))
+      H <- linearInterpolationMatrix <-
+        linearInterpolationOperator(layers,
+                                    healthZoneCoordinates,
+                                    compartmentsReported)
+      ## NOTE: the model error covariance matrix is time-invariant.
+      Q <- forecastErrorCovariance <-
+        forecastError.cov(layers,
+                          variableCovarianceFunction,
+                          forecastError.cov.sdBackground,
+                          forecastError.cor.length,
+                          neighbourhood.Bayes,
+                          compartmentsReported)
+      QHt <- Matrix::tcrossprod(Q, H)
+      HQHt <- H %*% QHt
     }
 
     ## NOTE: execute the "before" callback.
@@ -1094,55 +1096,6 @@ SVEIRD.BayesianDataAssimilation <-
                 timeseries = timeseries))
   }
 
-##' Using the provided parameters and SpatRaster, the necessary setup functions
-##' and values for Bayesian data assimilation are called, with values used later
-##' on returned.
-##' @title Setup Bayesian data assimilation
-##' @param layers a SpatRaster with the following layers: Susceptible,
-##'   Vaccinated, Exposed, Infected, Recovered, and Dead.
-##' @param healthZoneCoordinates a dataframe with three columns, a location
-##'   name, latitude, and longitude describing the geographical locations of
-##'   reporting health zones.
-##' @param compartmentsReported the number of compartments or epidemic states
-##'   reported on; either one or two. Higher numbers are not supported. One
-##'   corresponds only to infection, while two compartments corresponds to
-##'   exposure and infection.
-##' @param variableCovarianceFunction a function to calculate the error
-##'   covariance, passed to [forecastError.cov].
-##' @param forecastError.cov.sdBackground the "background" or default amount of
-##'   error, in standard deviations.
-##' @param forecastError.cor.length see the description of this argument in
-##'   [forecastError.cov].
-##' @param neighbourhood.Bayes the order of the "neighbourhood"; passed to
-##'   [forecastError.cov].
-##' @returns a list with components QHt, HQHt, and H.
-##' @author Bryce Carson
-setupBayesianDataAssimilation <-
-  function(layers,
-           healthZoneCoordinates,
-           compartmentsReported,
-           variableCovarianceFunction,
-           forecastError.cov.sdBackground,
-           forecastError.cor.length,
-           neighbourhood.Bayes) {
-    H <- linearInterpolationMatrix <-
-      linearInterpolationOperator(layers,
-                                  healthZoneCoordinates,
-                                  compartmentsReported)
-
-    ## NOTE: the model error covariance matrix is time-invariant.
-    Q <- forecastErrorCovariance <- forecastErrorCovarianceMatrix <-
-      forecastError.cov(layers,
-                        variableCovarianceFunction,
-                        forecastError.cov.sdBackground,
-                        forecastError.cor.length,
-                        neighbourhood.Bayes,
-                        compartmentsReported)
-    QHt <- Matrix::tcrossprod(Q, H)
-    HQHt <- H %*% QHt
-    return(list(QHt = QHt, HQHt = HQHt, H = H))
-  }
-
 ##' Assimilation of data (Bayesian) using optimal statistical inference, a
 ##' modified Kalman Filter.
 ##' @title Bayesian data assimilation
@@ -1154,7 +1107,7 @@ setupBayesianDataAssimilation <-
 ##'   matrix for use with one state vector). The matrix is either a trivial
 ##'   matrix as described elsewhere (see [linearInterpolationOperator]), or two
 ##'   partitions in a sparse, block diagonal matrix.
-##' @param incidenceData A "situation report" dataframe. The first column
+##' @param prevalenceData A "situation report" dataframe. The first column
 ##'   provides the date of the officially reported, observed incidence of the
 ##'   disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
 ##'   parameter to be one week prior to the first observed data?
@@ -1217,7 +1170,7 @@ setupBayesianDataAssimilation <-
 ##'   diagonal which are zero.
 ##' @param QHt the [tcrossprod] of the Q and H matrices.
 ##' @param HQHt the product of the H matrix and QHt.
-##' @returns a list of SpatRasters, the Infected and Exposed SpatRasters
+##' @returns a SpatRaster with Infected and Exposed compartment layers.
 ##' @author Bryce Carson
 assimilateData <-
   function(layers,
@@ -1275,11 +1228,11 @@ assimilateData <-
              byrow = TRUE) %>%
       terra::rast() %>%
       terra::"ext<-"(terra::ext(layers)) %>%
-      terra::"crs<-"(terra:crs(layers)) %>%
+      terra::"crs<-"(terra::crs(layers)) %>%
       terra::mask(classify.binary(layers$Susceptible), # Inhabited
                   maskvalues = 0,
                   updatevalue = 0) %>%
-      "name<-"("Infected")
+      "names<-"("Infected")
 
     if (all(is.nan(unique(terra::values(updatedSpatRaster))))) {
       eachElementOfInfectedIsNaN <- "All values in the Infected compartment update are NaN; that's incorrect!"
