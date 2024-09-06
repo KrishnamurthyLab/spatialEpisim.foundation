@@ -1083,7 +1083,7 @@ SVEIRD.BayesianDataAssimilation <-
                     newI = dplyr::lead(I) - I,
                     newR = dplyr::lead(R) - R,
                     newD = dplyr::lead(D) - D,
-                    cumE = dplyr::first(E) + cumsum(newE),
+                    cumE = dplyr::first(E) + cumsum(dplyr::case_when(newE > 0 ~ newE, .default = 0)),
                     cumI = dplyr::first(I) + cumsum(dplyr::case_when(newI > 0 ~ newI, .default = 0)))
 
     stopifnot(unique(terra::nlyr(timeseries)) == n.days + 1)
