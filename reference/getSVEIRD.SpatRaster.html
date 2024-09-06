@@ -53,8 +53,10 @@ an SVEIRD epidemic model.</p>
 
 
 <dl><dt id="arg-subregions">subregions<a class="anchor" aria-label="anchor" href="#arg-subregions"></a></dt>
-<dd><p>a SpatVector object of subregions used to crop the SVEIRD
-SpatRaster</p></dd>
+<dd><p>a SpatVector object of subregions used to crop the
+population SpatRaster before creating the other layers in the raster
+object to represent the other compartments in a SVEIRD epidemic model. If
+it is missing no cropping is performed.</p></dd>
 
 
 <dt id="arg-population">population<a class="anchor" aria-label="anchor" href="#arg-population"></a></dt>
@@ -121,6 +123,21 @@ non-zero values (if any existed before).</p>
 <span class="r-in"><span><span class="co">## Omitting the aggregation factor argument will prevent aggregation. An</span></span></span>
 <span class="r-in"><span><span class="co">## aggregation factor of zero or one is meaningless and will produce an</span></span></span>
 <span class="r-in"><span><span class="co">## error.</span></span></span>
+<span class="r-in"><span><span class="fu">getSVEIRD.SpatRaster</span><span class="op">(</span><span class="va">subregionsSpatVector</span>, <span class="va">susceptibleSpatRaster</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> class       : SpatRaster </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dimensions  : 689, 487, 6  (nrow, ncol, nlyr)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resolution  : 0.008333333, 0.008333333  (x, y)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> extent      : 27.22375, 31.28208, -2.067083, 3.674584  (xmin, xmax, ymin, ymax)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> coord. ref. : lon/lat WGS 84 (EPSG:4326) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> source(s)   : memory</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> varnames    : susceptibleSpatRaster </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               susceptibleSpatRaster </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> names       : Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> min values  :        0.00,          0,       0,        0,         0,    0 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> max values  :    32905.59,          0,       0,        0,         0,    0 </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">## Omitting a SpatVector will return a SpatRaster with layers representing each</span></span></span>
+<span class="r-in"><span><span class="co">## of SVEIRD without cropping or masking the input SpatRaster in any way.</span></span></span>
 <span class="r-in"><span><span class="fu">getSVEIRD.SpatRaster</span><span class="op">(</span><span class="va">subregionsSpatVector</span>, <span class="va">susceptibleSpatRaster</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> class       : SpatRaster </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> dimensions  : 689, 487, 6  (nrow, ncol, nlyr)</span>

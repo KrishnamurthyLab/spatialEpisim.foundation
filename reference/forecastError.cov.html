@@ -79,16 +79,22 @@ StackExchange, <a href="https://physics.stackexchange.com/a/671317" class="exter
 
 
 <dt id="arg-neighbourhood-bayes">neighbourhood.Bayes<a class="anchor" aria-label="anchor" href="#arg-neighbourhood-bayes"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>an exclusive lower limit of values allowed in the
+final matrix; values less than or equal to this limit within the forecast
+error covariance matrix are changed to values taken from the variable
+covariance function.</p></dd>
 
 
 <dt id="arg-compartmentsreported">compartmentsReported<a class="anchor" aria-label="anchor" href="#arg-compartmentsreported"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>either 1 or 2. Previously identified as
+states_observable, this is the count of compartments that are reported on
+and which will have data assimilated; if it is 2, the matrix is a block
+diagonal matrix.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>TODO</p>
+    <p>a matrix with the covariances of the observations in each cell of the input layers object.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
