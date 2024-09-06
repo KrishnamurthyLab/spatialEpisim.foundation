@@ -48,7 +48,7 @@ modified Kalman Filter.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">assimilateData</span><span class="op">(</span></span>
 <span>  <span class="va">layers</span>,</span>
 <span>  <span class="va">linearInterpolationMatrix</span>,</span>
-<span>  <span class="va">incidenceData</span>,</span>
+<span>  <span class="va">prevalenceData</span>,</span>
 <span>  <span class="va">healthZoneCoordinates</span>,</span>
 <span>  <span class="va">psi.diagonal</span>,</span>
 <span>  <span class="va">QHt</span>,</span>
@@ -74,7 +74,7 @@ matrix as described elsewhere (see <a href="linearInterpolationOperator.html">li
 partitions in a sparse, block diagonal matrix.</p></dd>
 
 
-<dt id="arg-incidencedata">incidenceData<a class="anchor" aria-label="anchor" href="#arg-incidencedata"></a></dt>
+<dt id="arg-prevalencedata">prevalenceData<a class="anchor" aria-label="anchor" href="#arg-prevalencedata"></a></dt>
 <dd><p>A "situation report" dataframe. The first column
 provides the date of the officially reported, observed incidence of the
 disease, in ISO format (YYYY-MM-DD). MAYBE TODO: enforce the startDate
@@ -152,7 +152,7 @@ diagonal which are zero.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>a list of SpatRasters, the Infected and Exposed SpatRasters</p>
+    <p>a SpatRaster with Infected and Exposed compartment layers.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
