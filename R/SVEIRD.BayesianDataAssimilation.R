@@ -996,11 +996,13 @@ SVEIRD.BayesianDataAssimilation <-
         }
       }
 
-      living <- sum(terra::global(terra::subset(layers, "Dead", negate = TRUE), "sum", na.rm = TRUE))
+      living <- terra::subset(layers, "Dead", negate = TRUE) %>%
+        terra::app("sum", na.rm = TRUE) %>%
+        "names<-"("Living")
 
       ## NOTE: set the previous timesteps compartment count values in the
       ## summary table before calculating values for the current timestep.
-      summaryTable[today, "N"] <- round(living)
+      summaryTable[today, "N"] <- round(terra::global(living, "sum", na.rm = TRUE))
       summaryTable[today, c("S", "V", "E", "I", "R", "D")] <-
         round(sums <- t(terra::global(layers, "sum", na.rm = TRUE)))
 
