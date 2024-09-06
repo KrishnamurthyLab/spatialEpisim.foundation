@@ -1185,15 +1185,18 @@ assimilateData <-
     Infected <- terra::as.matrix(layers$Infected, wide = TRUE)
 
     Prior <- matrix(Matrix::t(Infected), ncol = 1)
-    ## FIXME DONE: all elements in the Forecast matrix are NaN. TODO:
-    ## investigate why the Prior contains NaNs.
-    if (any(is.nan(Prior))) {
-      warning("Prior contains NaNs, replacing with zeroes.")
-      Prior[is.nan(Prior)] <- 0
-    }
-    Forecast <- linearInterpolationMatrix %*% Prior
-    ## Create the measurement error covariance matrix.
-    Innovation <- as.numeric(prevalenceData) - Forecast
+    ## DONE: investigate why the Prior contains NaNs. It contains NaNs which
+    ## represent areas outside of the geographical bounds of the area of
+    ## interest, yet which are within the bounds of the SpatRaster itself, so
+    ## the following two conditionals shouldn't be required or desired.
+    ## if (any(is.nan(Prior))) {
+    ##   warning("Prior contains NaNs, replacing with zeroes.")
+    ##   Prior[is.nan(Prior)] <- 0
+    ## }
+    ## if (any(is.na(Prior))) {
+    ##   warning("Prior contains NAs.")
+    ## }
+
     Innovation <- as.numeric(prevalenceData) - (linearInterpolationMatrix %*% Prior)
 
     Psi <- as.numeric(prevalenceData)
