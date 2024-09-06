@@ -144,8 +144,10 @@ getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
 ##' @details The SpatRaster objects for the VEIRD components are empty, the
 ##'   input SpatRaster is taken as the Suscptible layer, the only layer with
 ##'   non-zero values (if any existed before).
-##' @param subregions a SpatVector object of subregions used to crop the SVEIRD
-##'   SpatRaster
+##' @param subregions a SpatVector object of subregions used to crop the
+##'   population SpatRaster before creating the other layers in the raster
+##'   object to represent the other compartments in a SVEIRD epidemic model. If
+##'   it is missing no cropping is performed.
 ##' @param population a SpatRaster of population count data; it must be
 ##'   pre-aggregated if any aggregation is to be used during the simulation;
 ##'   none is performed by this function or downstream functions in the overall
