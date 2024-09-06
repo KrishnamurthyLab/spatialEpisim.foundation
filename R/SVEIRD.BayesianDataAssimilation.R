@@ -185,9 +185,15 @@ getCountrySubregions.SpatVector <- function(countryCodeISO3C = "COD",
 ##' ## aggregation factor of zero or one is meaningless and will produce an
 ##' ## error.
 ##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
+##'
+##' ## Omitting a SpatVector will return a SpatRaster with layers representing each
+##' ## of SVEIRD without cropping or masking the input SpatRaster in any way.
+##' getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
 getSVEIRD.SpatRaster <- function(subregions, population, aggregationFactor = NULL) {
-  terra::crs(subregions) <- terra::crs(population, proj = TRUE)
-  population <- terra::crop(population, subregions, mask = TRUE)
+  if (!missing(subregions)) {
+    terra::crs(subregions) <- terra::crs(population, proj = TRUE)
+    population <- terra::crop(population, subregions, mask = TRUE)
+  }
 
   if (!is.null(aggregationFactor)) {
     population <- terra::aggregate(population, fact = aggregationFactor, fun = "sum", na.rm = TRUE)
@@ -759,7 +765,7 @@ forecastError.cov <- function(layers,
 ##' @author Michael Myer
 ##' @export
 ##' @examples
-##' subregionsSpatVector <- terra::vect(
+##' IturiNordKivu <- terra::vect(
 ##'   system.file(
 ##'     "extdata",
 ##'     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
@@ -768,7 +774,7 @@ forecastError.cov <- function(layers,
 ##'     mustWork = TRUE
 ##'   )
 ##' )
-##' susceptibleSpatRaster <- terra::rast(
+##' populationDemocraticRepublicCongo <- terra::rast(
 ##'   system.file(
 ##'     "extdata",
 ##'     "susceptibleSpatRaster.tif", # Congo population
@@ -790,10 +796,6 @@ forecastError.cov <- function(layers,
 ##' } else {
 ##'   callback <- "{" # does nothing
 ##' }
-##' aggregatedCongoSubregions <-
-##'   getSVEIRD.SpatRaster(subregionsSpatVector,
-##'                        susceptibleSpatRaster,
-##'                        aggregationFactor = rasterAggregationFactor)
 ##' SVEIRD.BayesianDataAssimilation(
 ##'   ## Parameters
 ##'   alpha = 3.5e-5,
@@ -807,7 +809,8 @@ forecastError.cov <- function(layers,
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   neighbourhood.order = 1,
-##'   layers = aggregatedCongoSubregions,
+##'   populationSpatRaster = populationDemocraticRepublicCongo,
+##'   subregionsSpatVector = IturiNordKivu,
 ##'   aggregationFactor = rasterAggregationFactor,
 ##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
@@ -833,8 +836,9 @@ forecastError.cov <- function(layers,
 ##'   ## Model data
 ##'   seedData = initialInfections.fourCities,
 ##'   neighbourhood.order = 1,
-##'   layers = aggregatedCongoSubregions,
+##'   populationSpatRaster = populationDemocraticRepublicCongo,
 ##'   aggregationFactor = rasterAggregationFactor,
+##'   subregionsSpatVector = IturiNordKivu,
 ##'   startDate = "2018-08-01",
 ##'   countryCodeISO3C = "COD",
 ##'   incidenceData = head(Congo.EbolaIncidence, n = 4),
@@ -864,7 +868,8 @@ SVEIRD.BayesianDataAssimilation <-
            seedData,        ## these three arguments influence the progression of infection
            neighbourhood.order = 0,  ## these three arguments influence the progression of infection
            lambda,          ## these three arguments influence the progression of infection
-           layers,
+           populationSpatRaster,
+           subregionsSpatVector,
            aggregationFactor,
            startDate,
            countryCodeISO3C,
@@ -925,7 +930,11 @@ SVEIRD.BayesianDataAssimilation <-
     summaryTable <- cbind(tibble::tibble(Date = startDate + lubridate::days(0:(n.days - 1))),
                           summaryTable)
 
-    layers %<>% castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
+    layers <- getSVEIRD.SpatRaster(if (!missing(subregionsSpatVector)) subregions = subregionsSpatVector,
+                                   population = populationSpatRaster,
+                                   aggregationFactor = rasterAggregationFactor) %>%
+      castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
+
     timeseries <- terra::sds("names<-"(as.list(layers), names(layers)))
 
     if (dataAssimilationEnabled) {
