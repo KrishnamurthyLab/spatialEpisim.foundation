@@ -1211,6 +1211,7 @@ assimilateData <-
             !identical(dim(HQHt), dim(Psi))))
       message("HQHT + diag(Psi) is either a direct sum or a Kronecker sum, because the dimensions are inequal.")
 
+    ## FIXME: the weird pattern of values is witnessed in the Posterior.
     KalmanFilter <- QHt %*% Matrix::solve(HQHt + Psi)
     Posterior <- Prior + KalmanFilter %*% Innovation
     Posterior[Posterior < 0] <- 0
