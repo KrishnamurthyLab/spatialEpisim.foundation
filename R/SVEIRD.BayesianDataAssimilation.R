@@ -1217,9 +1217,7 @@ assimilateData <-
     ## when I wrote the first part of this comment a week ago? NOTE: take
     ## the subset of Posterior which is the same size as `layers`? Using single
     ## element subsetting assumes row-major ordering.
-    if (all(!is.null(getOption("spatialEpisim.foundation.debugMessages")),
-            getOption("spatialEpisim.foundation.debugMessages"),
-            !identical(Posterior, dim(layers))))
+    if (!identical(dim(Posterior), dim(layers)))
       message("Posterior and `layers` don't have the same dimensions, so subsetting Posterior is indeed required.")
 
     updatedSpatRaster <-
