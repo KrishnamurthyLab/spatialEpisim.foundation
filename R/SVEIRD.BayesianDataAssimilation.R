@@ -1028,6 +1028,7 @@ SVEIRD.BayesianDataAssimilation <-
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       growth <- beta * proportionSusceptible * transmissionLikelihoods
+      ## MAYBE FIXME: there should not be two layers returned; the masking is not as intended.
       newExposed <- terra::mask(if(simulationIsDeterministic) growth else stats::rpois(1, growth),
                                 c(proportionSusceptible < 1, transmissionLikelihoods < 1),
                                 maskvalues = TRUE,
