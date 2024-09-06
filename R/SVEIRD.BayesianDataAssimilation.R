@@ -1004,13 +1004,7 @@ SVEIRD.BayesianDataAssimilation <-
 
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
-      ## MAYBE: substituting NaNs may produce an plane, whereas we want
-      ## NaN where there is no spatial data, really; it'll make the plot of the
-      ## raster still appear like a geographic entity, rather than a plane.
-      ## Retaining NaNs would have consequences for the usage wherein the
-      ## indices are calculated wherever the proportionSusceptible is less than
-      ## one.
-      proportionSusceptible <- terra::subst(layers$Susceptible / living, NaN, 0) # alike total-mass action in Episim.
+      proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
 
       ## NOTE: Calculate a matrix of weights respecting human mobility patterns.
       transmissionLikelihoods <-
