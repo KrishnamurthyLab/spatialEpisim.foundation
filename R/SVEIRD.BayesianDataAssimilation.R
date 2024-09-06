@@ -1190,6 +1190,7 @@ assimilateData <-
     Forecast <- linearInterpolationMatrix %*% Prior
     ## Create the measurement error covariance matrix.
     Innovation <- as.numeric(prevalenceData) - Forecast
+    Innovation <- as.numeric(prevalenceData) - (linearInterpolationMatrix %*% Prior)
 
     Psi <- as.numeric(prevalenceData)
     Psi[Psi == 0] <- psi.diagonal
