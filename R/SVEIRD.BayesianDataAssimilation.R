@@ -887,19 +887,21 @@ SVEIRD.BayesianDataAssimilation <-
            callback) {
     startDate <- lubridate::ymd(startDate)
 
-    if (!dataAssimilationEnabled) {
-      ## When data assimilation is enabled, neither incidence nor death data should be provided.
-      stopifnot(missing(incidenceData) && missing(deathData))
-    } else {
+    if (dataAssimilationEnabled) {
+      ## TODO: the following two calls can be made into one call if some
+      ## higher-order programming is used.
       if (!missing(incidenceData)) {
         if (!(startDate <= dplyr::first(incidenceData$Date <- lubridate::ymd(incidenceData$Date))))
           stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(incidenceData$Date)))
       }
-
       if (!missing(deathData)) {
         if (!(startDate <= dplyr::first(deathData$Date <- lubridate::ymd(deathData$Date))))
           stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(deathData$Date)))
       }
+    } else {
+      ## When data assimilation is not enabled, neither incidence nor death data
+      ## should be provided.
+      stopifnot(missing(incidenceData) && missing(deathData))
     }
 
     ## NOTE: Preallocate a zeroed data frame with the following column names, and
