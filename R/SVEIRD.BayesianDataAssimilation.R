@@ -541,9 +541,15 @@ linearInterpolationOperator <- function(layers,
 ##' @param forecastError.cor.length "correlation length (i.e. the average size
 ##'   of the fluctuations)," as stated by J. Murray on the Physics
 ##'   StackExchange, <https://physics.stackexchange.com/a/671317>.
-##' @param neighbourhood.Bayes TODO
-##' @param compartmentsReported TODO
-##' @returns TODO
+##' @param neighbourhood.Bayes an exclusive lower limit of values allowed in the
+##'   final matrix; values less than or equal to this limit within the forecast
+##'   error covariance matrix are changed to values taken from the variable
+##'   covariance function.
+##' @param compartmentsReported either 1 or 2. Previously identified as
+##'   states_observable, this is the count of compartments that are reported on
+##'   and which will have data assimilated; if it is 2, the matrix is a block
+##'   diagonal matrix.
+##' @returns a matrix with the covariances of the observations in each cell of the input layers object.
 ##' @author Bryce Carson
 ##' @author Ashok Krishnmaurthy
 ##' @author Michael Myer
@@ -650,10 +656,16 @@ forecastError.cov <- function(layers,
 
 ##' @description Run a SVEIRD compartmental model of an epidemic, optionally using Bayesian data assimilation.
 ##' @title SVEIRD compartmental model with optional Bayesian data assimilation
-##' @param psi.diagonal TODO
-##' @param layers The SpatRaster object with SVEIRD compartment layers, and a
-##'   layer classifying habitation. Created with the getSVEIRD.SpatRaster
-##'   function.
+##' @param psi.diagonal A replacement value for elements of the Psi matrix'
+##'   diagonal which are zero.
+##' @param subregionsSpatVector a SpatVector object of subregions used to crop
+##'   the population SpatRaster before creating the other layers in the raster
+##'   object to represent the other compartments in a SVEIRD epidemic model. If
+##'   it is missing no cropping is performed.
+##' @param populationSpatRaster a SpatRaster of population count data; it must
+##'   be pre-aggregated if any aggregation is to be used during the simulation;
+##'   none is performed by this function or downstream functions in the overall
+##'   implementation of [SVEIRD.BayesianDataAssimilation] simulations.
 ##' @param startDate The date (in YYYY-MM-DD format) the simulation begins.
 ##' @param countryCodeISO3C The ISO three character code for a recognized country.
 ##' @param lambda the average dialy movement distance of an individual (in

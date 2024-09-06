@@ -14,7 +14,8 @@ SVEIRD.BayesianDataAssimilation(
   seedData,
   neighbourhood.order = 0,
   lambda,
-  layers,
+  populationSpatRaster,
+  subregionsSpatVector,
   aggregationFactor,
   startDate,
   countryCodeISO3C,
@@ -60,9 +61,15 @@ argument are zero and one.}
 \item{lambda}{the average dialy movement distance of an individual (in
 kilometers).}
 
-\item{layers}{The SpatRaster object with SVEIRD compartment layers, and a
-layer classifying habitation. Created with the getSVEIRD.SpatRaster
-function.}
+\item{populationSpatRaster}{a SpatRaster of population count data; it must
+be pre-aggregated if any aggregation is to be used during the simulation;
+none is performed by this function or downstream functions in the overall
+implementation of \link{SVEIRD.BayesianDataAssimilation} simulations.}
+
+\item{subregionsSpatVector}{a SpatVector object of subregions used to crop
+the population SpatRaster before creating the other layers in the raster
+object to represent the other compartments in a SVEIRD epidemic model. If
+it is missing no cropping is performed.}
 
 \item{aggregationFactor}{The number of adjacent cells in any one direction to
 aggregate into a single cell. The aggregation factor must be the same as
@@ -153,7 +160,8 @@ forecastErrorCovariance matrix.}
 assimilation; this is different from that used in the casting of seed data
 about a neighbourhood of cells.}
 
-\item{psi.diagonal}{TODO}
+\item{psi.diagonal}{A replacement value for elements of the Psi matrix'
+diagonal which are zero.}
 
 \item{callback}{a callback function to run, with no arguments, which will be
 called every time the main loop of the simulation iterates, or a list of
@@ -172,7 +180,7 @@ SpatRasterDataset representing timeseries of different variables.
 Run a SVEIRD compartmental model of an epidemic, optionally using Bayesian data assimilation.
 }
 \examples{
-subregionsSpatVector <- terra::vect(
+IturiNordKivu <- terra::vect(
   system.file(
     "extdata",
     ## COD: Nord-Kivu and Ituri (Democratic Republic of Congo)
@@ -181,7 +189,7 @@ subregionsSpatVector <- terra::vect(
     mustWork = TRUE
   )
 )
-susceptibleSpatRaster <- terra::rast(
+populationDemocraticRepublicCongo <- terra::rast(
   system.file(
     "extdata",
     "susceptibleSpatRaster.tif", # Congo population
@@ -203,10 +211,6 @@ if (requireNamespace("cli", quietly = TRUE)) {
 } else {
   callback <- "{" # does nothing
 }
-aggregatedCongoSubregions <-
-  getSVEIRD.SpatRaster(subregionsSpatVector,
-                       susceptibleSpatRaster,
-                       aggregationFactor = rasterAggregationFactor)
 SVEIRD.BayesianDataAssimilation(
   ## Parameters
   alpha = 3.5e-5,
@@ -220,7 +224,8 @@ SVEIRD.BayesianDataAssimilation(
   ## Model data
   seedData = initialInfections.fourCities,
   neighbourhood.order = 1,
-  layers = aggregatedCongoSubregions,
+  populationSpatRaster = populationDemocraticRepublicCongo,
+  subregionsSpatVector = IturiNordKivu,
   aggregationFactor = rasterAggregationFactor,
   startDate = "2018-08-01",
   countryCodeISO3C = "COD",
@@ -246,8 +251,9 @@ SVEIRD.BayesianDataAssimilation(
   ## Model data
   seedData = initialInfections.fourCities,
   neighbourhood.order = 1,
-  layers = aggregatedCongoSubregions,
+  populationSpatRaster = populationDemocraticRepublicCongo,
   aggregationFactor = rasterAggregationFactor,
+  subregionsSpatVector = IturiNordKivu,
   startDate = "2018-08-01",
   countryCodeISO3C = "COD",
   incidenceData = head(Congo.EbolaIncidence, n = 4),

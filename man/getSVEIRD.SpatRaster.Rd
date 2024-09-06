@@ -7,8 +7,10 @@
 getSVEIRD.SpatRaster(subregions, population, aggregationFactor = NULL)
 }
 \arguments{
-\item{subregions}{a SpatVector object of subregions used to crop the SVEIRD
-SpatRaster}
+\item{subregions}{a SpatVector object of subregions used to crop the
+population SpatRaster before creating the other layers in the raster
+object to represent the other compartments in a SVEIRD epidemic model. If
+it is missing no cropping is performed.}
 
 \item{population}{a SpatRaster of population count data; it must be
 pre-aggregated if any aggregation is to be used during the simulation;
@@ -55,6 +57,10 @@ getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster,
 ## Omitting the aggregation factor argument will prevent aggregation. An
 ## aggregation factor of zero or one is meaningless and will produce an
 ## error.
+getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
+
+## Omitting a SpatVector will return a SpatRaster with layers representing each
+## of SVEIRD without cropping or masking the input SpatRaster in any way.
 getSVEIRD.SpatRaster(subregionsSpatVector, susceptibleSpatRaster)
 }
 \author{

@@ -28,12 +28,18 @@ the covariances of the forecast covariance error matrix.}
 of the fluctuations)," as stated by J. Murray on the Physics
 StackExchange, \url{https://physics.stackexchange.com/a/671317}.}
 
-\item{neighbourhood.Bayes}{TODO}
+\item{neighbourhood.Bayes}{an exclusive lower limit of values allowed in the
+final matrix; values less than or equal to this limit within the forecast
+error covariance matrix are changed to values taken from the variable
+covariance function.}
 
-\item{compartmentsReported}{TODO}
+\item{compartmentsReported}{either 1 or 2. Previously identified as
+states_observable, this is the count of compartments that are reported on
+and which will have data assimilated; if it is 2, the matrix is a block
+diagonal matrix.}
 }
 \value{
-TODO
+a matrix with the covariances of the observations in each cell of the input layers object.
 }
 \description{
 generates a block diagonal error covariance matrix with exponential decay
