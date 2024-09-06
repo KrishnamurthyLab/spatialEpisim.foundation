@@ -1243,6 +1243,16 @@ assimilateData <-
       }
     }
 
+    ## NOTE: reclassifying NAs as zeroes will cause the geographical appearance
+    ## of the plotted raster to be lost, because values outside of the actual
+    ## geographical bounds (but within the bounds of the SpatRaster) will be set
+    ## to zero, so the raster will be more of a "field" or "plane" than a raster
+    ## of a geographic area with raster values for some variable.
+    ## rcl <- rbind(cbind(NA, 0), cbind(NaN, 0))
+
+    ## NOTE: reclassifying NaNs is the proper way to handle division by zero.
+    rcl <- cbind(NaN, 0)
+
     ## DONE: in previous commits there was a question here; my answer to that
     ## question is, "Exposed data should be assimilated before preserving the
     ## ratio of the forecast and the analysis of the exposed and infected
@@ -1250,8 +1260,7 @@ assimilateData <-
     ## observed data prior to preserving the ratio of exposed to infected".
     return("names<-"(c(updatedSpatRaster,
                        terra::classify((layers$Exposed * updatedSpatRaster) / layers$Infected,
-                                       rbind(cbind(NA, 0),
-                                             cbind(NaN, 0)))),
+                                       rcl)),
                      c("Infected", "Exposed")))
   }
 
