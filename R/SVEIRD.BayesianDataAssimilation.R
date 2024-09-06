@@ -1014,6 +1014,8 @@ SVEIRD.BayesianDataAssimilation <-
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
                      w = averageEuclideanDistance(lambda, aggregationFactor),
+                     na.policy = "omit",
+                     fillvalue = 0,
                      fun = "sum",
                      na.rm = TRUE)
 
