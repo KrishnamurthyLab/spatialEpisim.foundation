@@ -1049,16 +1049,17 @@ SVEIRD.BayesianDataAssimilation <-
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       growth <- beta * proportionSusceptible * transmissionLikelihoods
-      ## MAYBE FIXME: there should not be two layers returned; the masking is not as intended.
       newExposed <- terra::mask(if(simulationIsDeterministic) growth else stats::rpois(1, growth),
-                                c(proportionSusceptible < 1, transmissionLikelihoods < 1),
-                                maskvalues = TRUE,
+                                terra::app(c(proportionSusceptible < 1, transmissionLikelihoods < 1),
+                                           fun = "sum",
+                                           na.rm = TRUE),
+                                maskvalues = 1,
                                 updatevalue = 0)
 
       newInfected <- reclassifyBelowUpperBound(gamma * sum(c(layers$Exposed, newExposed)), upper = 1)
 
-      ## Some infectious people are going to either recover or die
       infectious <- reclassifyBelowUpperBound(sum(c(layers$Infected, newInfected)), upper = 1)
+
       newRecovered <- sigma * infectious
 
       newDead <- reclassifyBelowUpperBound(delta * infectious, upper = 1)
