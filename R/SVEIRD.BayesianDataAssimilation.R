@@ -907,8 +907,8 @@ SVEIRD.BayesianDataAssimilation <-
     startDate <- lubridate::ymd(startDate)
 
     if (dataAssimilationEnabled) {
-      ## TODO: the following two calls can be made into one call if some
-      ## higher-order programming is used.
+      ## TODO: the following two conditional statements can be made into one
+      ## call if some higher-order programming is used.
       if (!missing(incidenceData)) {
         if (!(startDate <= dplyr::first(incidenceData$Date <- lubridate::ymd(incidenceData$Date))))
           stop(sprintf("%s is not prior to or equal to %s.", startDate, dplyr::first(incidenceData$Date)))
