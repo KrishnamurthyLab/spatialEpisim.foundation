@@ -1029,8 +1029,6 @@ SVEIRD.BayesianDataAssimilation <-
 
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
-      proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
-
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
                      w = averageEuclideanDistance(lambda, aggregationFactor),
@@ -1047,6 +1045,7 @@ SVEIRD.BayesianDataAssimilation <-
               !(uniqueInfectionLikelihoods > 1)))
         stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
 
+      proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
       growth <- beta * proportionSusceptible * transmissionLikelihoods
       newExposed <- terra::mask(if(simulationIsDeterministic) growth else stats::rpois(1, growth),
                                 terra::app(c(proportionSusceptible < 1, transmissionLikelihoods < 1),
