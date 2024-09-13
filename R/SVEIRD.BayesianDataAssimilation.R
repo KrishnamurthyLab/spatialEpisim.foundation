@@ -1071,16 +1071,12 @@ SVEIRD.BayesianDataAssimilation <-
 
       if (dataAssimilationEnabled && summaryTable[today, "Date"] %in% incidenceData$Date) {
         todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable[today, "Date"]))[, -c(1, 2)]
-        infectedExposedLayers <-
-          assimilateData(layers,
-                         linearInterpolationMatrix,
-                         todaysIncidenceData,
-                         healthZoneCoordinates,
-                         psi.diagonal,
-                         QHt,
-                         HQHt)
-        layers$Infected <- infectedExposedLayers$Infected
-        layers$Exposed <- infectedExposedLayers$Exposed
+        layers %<>% assimilateData(linearInterpolationMatrix,
+                                   todaysIncidenceData,
+                                   healthZoneCoordinates,
+                                   psi.diagonal,
+                                   QHt,
+                                   HQHt)
       }
 
       for(layer in names(layers)) {
@@ -1284,10 +1280,9 @@ assimilateData <-
     ## ratio of the forecast and the analysis of the exposed and infected
     ## compartments; the forecast of exposures should be replaced with the
     ## observed data prior to preserving the ratio of exposed to infected".
-    return("names<-"(c(updatedSpatRaster,
-                       terra::classify((layers$Exposed * updatedSpatRaster) / layers$Infected,
-                                       rcl)),
-                     c("Infected", "Exposed")))
+    layers$Infected <- updatedSpatRaster
+    layers$Exposed <- terra::classify((layers$Exposed * updatedSpatRaster) / layers$Infected, rcl)
+    return(layers)
   }
 
 ##' The Moore neighbourhood around the locations given in the seed data is
