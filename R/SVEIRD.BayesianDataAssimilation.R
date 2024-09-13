@@ -1031,7 +1031,6 @@ SVEIRD.BayesianDataAssimilation <-
 
       proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
 
-      ## NOTE: Calculate a matrix of weights respecting human mobility patterns.
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
                      w = averageEuclideanDistance(lambda, aggregationFactor),
