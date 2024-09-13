@@ -1080,8 +1080,7 @@ SVEIRD.BayesianDataAssimilation <-
       }
 
       for(layer in names(layers)) {
-        i <- which(layer == names(layers))
-        terra::add(timeseries[i]) <- layers[layer]
+        terra::add(timeseries[which(layer == names(layers))]) <- layers[layer]
       }
     }
 
