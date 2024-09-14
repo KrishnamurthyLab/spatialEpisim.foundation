@@ -944,7 +944,7 @@ SVEIRD.BayesianDataAssimilation <-
 
     layers <- getSVEIRD.SpatRaster(if (!missing(subregionsSpatVector)) subregions = subregionsSpatVector,
                                    population = populationSpatRaster,
-                                   aggregationFactor = rasterAggregationFactor) %>%
+                                   if (aggregationFactor > 1) aggregationFactor = aggregationFactor) %>%
       castSeedDataQueensNeighbourhood(seedData, neighbourhood.order)
 
     timeseries <- terra::sds("names<-"(as.list(layers), names(layers)))
