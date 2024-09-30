@@ -22,7 +22,7 @@
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/ashokkrish/spatialEpisim-foundation/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/KrishnamurthyLab/spatialEpisim.foundation/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul></div>
 
 
@@ -32,7 +32,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>SVEIRD compartmental model with optional Bayesian data assimilation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/ashokkrish/spatialEpisim-foundation/blob/main/R/SVEIRD.BayesianDataAssimilation.R" class="external-link"><code>R/SVEIRD.BayesianDataAssimilation.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/KrishnamurthyLab/spatialEpisim.foundation/blob/main/R/SVEIRD.BayesianDataAssimilation.R" class="external-link"><code>R/SVEIRD.BayesianDataAssimilation.R</code></a></small>
       <div class="d-none name"><code>SVEIRD.BayesianDataAssimilation.Rd</code></div>
     </div>
 
@@ -330,7 +330,38 @@ SpatRasterDataset representing timeseries of different variables.</p>
 <span class="r-in"><span>  dataAssimilationEnabled <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
 <span class="r-in"><span>  callback <span class="op">=</span> <span class="va">callback</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in h(simpleError(msg, call)):</span> error in evaluating the argument 'x' in selecting a method for function 'global': object 'rasterAggregationFactor' not found</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■                          </span>  16% | ETA:  5s</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■                        </span>  23% | ETA:  5s</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■■■■■■■■■           </span>  68% | ETA:  2s</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Simulating epidemic (SEI-type) <span style="color: #00BB00;">■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ </span> 100% | ETA:  0s</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $table</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 31 × 15</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    Date              N        S     V     E     I     R     D  newV  newE  newI</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 1</span> 2018-08-01 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">255</span>913     0   108    54     0    34   429     5    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 2</span> 2018-08-02 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">255</span>480   429   113    53     1    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 3</span> 2018-08-03 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">255</span>051   858   113    52     2    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 4</span> 2018-08-04 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">254</span>622  <span style="text-decoration: underline;">1</span>287   113    51     3    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 5</span> 2018-08-05 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">254</span>193  <span style="text-decoration: underline;">1</span>716   113    50     4    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 6</span> 2018-08-06 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">253</span>764  <span style="text-decoration: underline;">2</span>145   113    49     5    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 7</span> 2018-08-07 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">253</span>335  <span style="text-decoration: underline;">2</span>574   113    48     6    34   428     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 8</span> 2018-08-08 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">252</span>906  <span style="text-decoration: underline;">3</span>002   113    47     7    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;"> 9</span> 2018-08-09 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">252</span>477  <span style="text-decoration: underline;">3</span>431   113    46     8    34   429     0    -<span style="color: #BB0000;">1</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">10</span> 2018-08-10 12<span style="text-decoration: underline;">256</span>075 12<span style="text-decoration: underline;">252</span>048  <span style="text-decoration: underline;">3</span>860   113    45     9    34   429     0     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 21 more rows</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 4 more variables: newR &lt;dbl&gt;, newD &lt;dbl&gt;, cumE &lt;dbl&gt;, cumI &lt;dbl&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $timeseries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> class       : SpatRasterDataset </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> subdatasets : 6 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> dimensions  : 77, 55 (nrow, ncol)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> nlyr        : 32, 32, 32, 32, 32, 32 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> resolution  : 0.075, 0.075  (x, y)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> extent      : 27.22375, 31.34875, -2.100416, 3.674584  (xmin, xmax, ymin, ymax)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> coord. ref. : lon/lat WGS 84 (EPSG:4326) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> source(s)   : memory </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> names       : Susceptible, Vaccinated, Exposed, Infected, Recovered, Dead </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">## A large, lengthy simulation with Bayesian data assimilation (runtime</span></span></span>
 <span class="r-in"><span><span class="co">## approximately four minutes).</span></span></span>
@@ -365,7 +396,17 @@ SpatRasterDataset representing timeseries of different variables.</p>
 <span class="r-in"><span>  neighbourhood.Bayes <span class="op">=</span> <span class="fl">3</span>,</span></span>
 <span class="r-in"><span>  psi.diagonal <span class="op">=</span> <span class="fl">1e-3</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in h(simpleError(msg, call)):</span> error in evaluating the argument 'x' in selecting a method for function 'global': object 'rasterAggregationFactor' not found</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>[Linear interpolation operator] Raster aggregation factor is too high to differentiate between two (or more) health zones (they correspond to the same grid cell).</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 4 × 2</span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># Groups:   Cell [2]</span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   `Health Zone`  Cell</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> Katwa          <span style="text-decoration: underline;">3</span>415</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> Vuhovi         <span style="text-decoration: underline;">3</span>415</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">3</span> Mambasa        <span style="text-decoration: underline;">2</span>305</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">4</span> Mandima        <span style="text-decoration: underline;">2</span>305</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Posterior and `layers` don't have the same dimensions, so subsetting Posterior is indeed required.</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in assimilateData(., linearInterpolationMatrix, todaysIncidenceData,     healthZoneCoordinates, psi.diagonal, QHt, HQHt):</span> All values in the Infected compartment update are NaN; that's incorrect!</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -377,7 +418,7 @@ SpatRasterDataset representing timeseries of different variables.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
 </div>
 
     </footer></div>
