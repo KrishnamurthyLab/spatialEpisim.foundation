@@ -1029,9 +1029,14 @@ SVEIRD.BayesianDataAssimilation <-
 
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
+      if (aggregationFactor > 1)
+        weights <- averageEuclideanDistance(lambda, aggregationFactor)
+      else
+        weights <- averageEuclideanDistance(lambda)
+
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
-                     w = averageEuclideanDistance(lambda, aggregationFactor),
+                     w = weights,
                      na.policy = "omit",
                      fillvalue = 0,
                      fun = "sum",
