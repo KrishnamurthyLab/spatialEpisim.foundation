@@ -286,7 +286,9 @@ classify.binary <- function(inputRaster) {
 ##' lattice::levelplot(as.array(averageEuclideanDistance(100, 35)))
 averageEuclideanDistance <-
   function(lambda, aggregationFactor = 1, epsilon = 0) {
-    stopifnot(aggregationFactor > 0)
+    stopifnot(aggregationFactor >= 0)
+    if (is.null(aggregationFactor)) aggregationFactor <- 1
+    if (aggregationFactor == 0) aggregationFactor <- 1
     radius <-
       if (lambda <= aggregationFactor)
         1
