@@ -1044,6 +1044,9 @@ last(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n",
       summaryTable[today, c("S", "V", "E", "I", "R", "D")] <-
         round(sums <- t(terra::global(layers, "sum", na.rm = TRUE)))
 
+      ## TODO: vaccination schemes... this should be a function which takes the
+      ## layers object and alpha and does whatever it wants, returning the
+      ## "newVaccinated".
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
       if (aggregationFactor > 1)
