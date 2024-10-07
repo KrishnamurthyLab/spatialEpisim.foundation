@@ -1274,6 +1274,7 @@ assimilateData <-
     if (!identical(dim(Posterior), dim(layers)))
       message("Posterior and `layers` don't have the same dimensions, so subsetting Posterior is indeed required.")
 
+    ## NOTE: when the update is entirely NaNs, it is because the Posterior is all NaNs.
     updatedSpatRaster <-
       matrix(Posterior[seq(terra::nrow(layers) * terra::ncol(layers))],
              nrow = terra::nrow(layers),
