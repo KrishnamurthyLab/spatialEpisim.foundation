@@ -1412,6 +1412,8 @@ castSeedDataQueensNeighbourhood <-
       }
     }
 
+    ## MAYBE TODO: is there an acceptable arithmetic method using terra::app?
+    ## Yes, likely. Do I know how to use it? No. Is it faster? Maybe? 🤷
     layers$Susceptible <- layers$Susceptible -
       layers$Vaccinated -
       layers$Exposed -
