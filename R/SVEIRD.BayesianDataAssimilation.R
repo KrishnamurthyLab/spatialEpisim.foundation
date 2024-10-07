@@ -949,9 +949,21 @@ SVEIRD.BayesianDataAssimilation <-
 
     timeseries <- terra::sds("names<-"(as.list(layers), names(layers)))
 
+    fmt <-
+      c("Some of the %s data to be assimilated exists outside of the temporal \
+bounds of the simulation.",
+"first(incidenceData$Date)\t%s\t\tfirst(summaryTable$Date)\t%s\n\
+last(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n",
+"Try an earlier startDate argument, or increase the n.days argument.\n")
+
     if (dataAssimilationEnabled) {
       if (!missing(incidenceData) && !all(incidenceData$Date %in% summaryTable$Date)) {
-        stop(sprintf("Some of the incidence data to be assimilated exists outside of the temporal bounds of the simulation.\nfirst(incidenceData$Date)\t%s\t\tfirst(summaryTable$Date)\t%s\nlast(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n\nTry an earlier startDate argument, or increase the n.days argument.\n", dplyr::first(incidenceData$Date), dplyr::first(summaryTable$Date), dplyr::last(incidenceData$Date), dplyr::last(summaryTable$Date)))
+        stop(sprintf(paste(fmt, "\n"),
+                     "incidence",
+                     dplyr::first(incidenceData$Date),
+                     dplyr::first(summaryTable$Date),
+                     dplyr::last(incidenceData$Date),
+                     dplyr::last(summaryTable$Date)))
 
         ## TODO: improve the error messaging to be clearer, offering an exact
         ## difference (in days) to the user; even better, adjust the startDate
@@ -961,7 +973,12 @@ SVEIRD.BayesianDataAssimilation <-
         ## }
       }
       if (!missing(deathData) && !all(deathData$Date %in% summaryTable$Date)) {
-        stop(sprintf("Some of the death data to be assimilated exists outside of the temporal bounds of the simulation.\nfirst(deathData$Date)\t%s\t\tfirst(summaryTable$Date)\t%s\nlast(deathData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n\nTry an earlier startDate argument, or increase the n.days argument.\n", dplyr::first(deathData$Date), dplyr::first(summaryTable$Date), dplyr::last(deathData$Date), dplyr::last(summaryTable$Date)))
+        stop(sprintf(paste(fmt, "\n"),
+                     "incidence",
+                     dplyr::first(incidenceData$Date),
+                     dplyr::first(summaryTable$Date),
+                     dplyr::last(incidenceData$Date),
+                     dplyr::last(summaryTable$Date)))
 
         ## TODO: improve the error messaging to be clearer, offering an exact
         ## difference (in days) to the user; even better, adjust the startDate
