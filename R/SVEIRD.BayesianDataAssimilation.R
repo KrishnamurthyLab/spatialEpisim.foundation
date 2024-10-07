@@ -1399,10 +1399,10 @@ castSeedDataQueensNeighbourhood <-
       col <- terra::colFromX(layers, data$lon)
 
       if (!any(is.na(c(row, col)))) {
-        rowRange <- seq(from = row - neighbourhood.order,
-                        to = row + neighbourhood.order)
+        rowRange <- seq(from    = row - neighbourhood.order,
+                        to      = row + neighbourhood.order)
         columnRange <- seq(from = col - neighbourhood.order,
-                           to = col + neighbourhood.order)
+                           to   = col + neighbourhood.order)
 
         layers$Vaccinated[row, col]            <- data$InitialVaccinated
         ## NOTE about DONT: the confusion can be avoided by NOT doing what it
