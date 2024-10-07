@@ -876,27 +876,25 @@ SVEIRD.BayesianDataAssimilation <-
            delta,
 
            ## Model runtime
+           startDate,
            n.days,
 
            ## Model data
-           seedData,        ## these three arguments influence the progression of infection
+           seedData,                 ## these three arguments influence the progression of infection
            neighbourhood.order = 0,  ## these three arguments influence the progression of infection
-           lambda,          ## these three arguments influence the progression of infection
+           lambda,                   ## these three arguments influence the progression of infection
            populationSpatRaster,
            subregionsSpatVector,
            aggregationFactor,
-           startDate,
            countryCodeISO3C,
-
-           ## Bayesian data assimilation
-           incidenceData,
-           deathData,
 
            ## Model options
            simulationIsDeterministic = TRUE,
            dataAssimilationEnabled = FALSE,
 
            ## Bayesian data assimilation
+           incidenceData,
+           deathData,
            healthZoneCoordinates,
            variableCovarianceFunction,
            forecastError.cov.sdBackground,
