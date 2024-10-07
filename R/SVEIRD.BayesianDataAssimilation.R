@@ -1064,11 +1064,14 @@ last(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n",
 
       uniqueInfectionLikelihoods <- length(unique(as.vector(transmissionLikelihoods)))
       if (is.nan(sums[, "Infected"]))
-        warning("The result of (global) sum total of the Infected compartment is NaN according to terra, so the check that the number of unique infection likelihoods is greater than one is being skipped this iteration. See issue #13.")
+        warning("The result of (global) sum total of the Infected compartment is\
+ NaN according to terra, so the check that the number of unique infection \
+likelihoods is greater than one is being skipped this iteration. See issue #13.")
       if (all(!is.nan(sums[, "Infected"]),
               as.numeric(sums[, "Infected"]) >= 0,
               !(uniqueInfectionLikelihoods > 1)))
-        stop("The number of unique likelihoods of transmission is not more than one, indicating an issue generating the transmissionLikelihoods matrix.")
+        stop("The number of unique likelihoods of transmission is not more than \
+one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
       growth <- beta * proportionSusceptible * transmissionLikelihoods
