@@ -1241,7 +1241,11 @@ assimilateData <-
     ##   warning("Prior contains NAs.")
     ## }
 
-    Innovation <- as.numeric(prevalenceData) - (linearInterpolationMatrix %*% Prior)
+    Innovation <- as.numeric(prevalenceData) -
+      ## MAYBE FIXME: the following matrix algebra is what results in 28 NaNs,
+      ## probably the ultimate source of all my headaches with the Bayesian
+      ## update.
+      (linearInterpolationMatrix %*% Prior)
 
     Psi <- as.numeric(prevalenceData)
     Psi[Psi == 0] <- psi.diagonal
