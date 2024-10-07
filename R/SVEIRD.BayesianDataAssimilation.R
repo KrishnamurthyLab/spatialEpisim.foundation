@@ -1049,10 +1049,11 @@ last(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n",
       ## "newVaccinated".
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
+      ## NOTE: see the discussion in the literate document in the spatialEpisim stable branch.
       if (aggregationFactor > 1)
-        weights <- averageEuclideanDistance(lambda, aggregationFactor)
+        weights <- averageEuclideanDistance(lambda = radius, aggregationFactor)
       else
-        weights <- averageEuclideanDistance(lambda)
+        weights <- averageEuclideanDistance(lambda = radius)
 
       transmissionLikelihoods <-
         terra::focal(x = layers$Infected,
