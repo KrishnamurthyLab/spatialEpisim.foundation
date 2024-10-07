@@ -1075,28 +1075,38 @@ likelihoods is greater than one is being skipped this iteration. See issue #13."
 one, indicating an issue generating the transmissionLikelihoods matrix.")
 
       proportionSusceptible <- layers$Susceptible / living # alike total-mass action in Episim.
-      growth <- beta * proportionSusceptible * transmissionLikelihoods
-      newExposed <- terra::mask(if(simulationIsDeterministic) growth else stats::rpois(1, growth),
-                                terra::app(c(proportionSusceptible < 1, transmissionLikelihoods < 1),
-                                           fun = "sum",
-                                           na.rm = TRUE),
-                                maskvalues = 1,
-                                updatevalue = 0)
 
-      newInfected <- reclassifyBelowUpperBound(gamma * sum(c(layers$Exposed, newExposed)), upper = 1)
+      newExposed <- beta * reclassifyBelowUpperBound(transmissionLikelihoods, 1, NA)
+      if (!simulationIsDeterministic) newExposed <- stats::rpois(1, newExposed)
 
-      infectious <- reclassifyBelowUpperBound(sum(c(layers$Infected, newInfected)), upper = 1)
+      ## MAYBE FIXME: it doesn't make sense for the newly exposed, which are
+      ## people from today, not yesterday, to become infectious within a day,
+      ## but maybe that's possible in some diseases? With spatialEpisim being
+      ## GENERALIZED to multiple diseases then this is certainly wrong!
+      newInfected <- gamma * reclassifyBelowUpperBound(layers$Exposed, 1)
 
+      infectious <- reclassifyBelowUpperBound(layers$Infected, 1)
+
+      ## NOTE: it is possible that a person becomes a fatality the same day they
+      ## become symptomatic; some diseases like Ebola are very quickly
+      ## progressing, and effects tolerable by one person may be deadly for
+      ## another. A person who becomes symptomatic is unlikely, however, to
+      ## recover the same day... but this is what the old code did so it'
+      ## retained as it was. Discuss this with Ashok, given we're aiming to make
+      ## spatialEpisim disease-agnostic.
       newRecovered <- sigma * infectious
+      ## newRecovered <- sigma * layers$Infected
+      newDead <- delta * infectious
+      ## newDead <- reclassifyBelowUpperBound(delta * layers$Infected, upper = 1)
 
-      newDead <- reclassifyBelowUpperBound(delta * infectious, upper = 1)
-
-      layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated), na.rm = TRUE)
-      layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated), na.rm = TRUE)
-      layers$Exposed     <- sum(c(layers$Exposed, newExposed, -1 * newInfected), na.rm = TRUE)
-      layers$Infected    <- sum(c(layers$Infected, newInfected, -1 * newDead, -1 * newRecovered), na.rm = TRUE)
-      layers$Recovered   <- sum(c(layers$Recovered, newRecovered), na.rm = TRUE)
-      layers$Dead        <- sum(c(layers$Dead, newDead), na.rm = TRUE)
+      sum <- \(...) base::sum(..., na.rm = TRUE)
+      layers$Susceptible <- sum(c(layers$Susceptible, -1 * newExposed, -1 * newVaccinated))
+      layers$Vaccinated  <- sum(c(layers$Vaccinated, newVaccinated))
+      layers$Exposed     <- sum(c(layers$Exposed, newExposed, -1 * newInfected))
+      layers$Infected    <- sum(c(layers$Infected, newInfected, -1 * newDead, -1 * newRecovered))
+      layers$Recovered   <- sum(c(layers$Recovered, newRecovered))
+      layers$Dead        <- sum(c(layers$Dead, newDead))
+      rm(sum)
 
       if (dataAssimilationEnabled && summaryTable[today, "Date"] %in% incidenceData$Date) {
         todaysIncidenceData <- (dplyr::filter(incidenceData, Date == summaryTable[today, "Date"]))[, -c(1, 2)]
