@@ -1405,8 +1405,10 @@ castSeedDataQueensNeighbourhood <-
                            to = col + neighbourhood.order)
 
         layers$Vaccinated[row, col]            <- data$InitialVaccinated
-        layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x
-        layers$Infected[rowRange, columnRange] <- data$InitialInfections.x
+        ## NOTE about DONT: the confusion can be avoided by NOT doing what it
+        ## tells you to DONT do; or use the "suffix" argument of right_join.
+        layers$Exposed[rowRange, columnRange]  <- data$InitialExposed.x # DONT confuse with IntialExposed.
+        layers$Infected[rowRange, columnRange] <- data$InitialInfections.x # DONT confuse with IntialInfections.
         layers$Recovered[row, col]             <- data$InitialRecovered
         layers$Dead[row, col]                  <- data$InitialDead
       }
