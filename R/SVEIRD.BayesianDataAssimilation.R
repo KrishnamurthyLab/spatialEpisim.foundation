@@ -1125,14 +1125,16 @@ one, indicating an issue generating the transmissionLikelihoods matrix.")
       }
     }
 
+    caseWhenLargerThanZero <- function(x) dplyr::case_when(x > 0 ~ x, .default = 0)
+
     summaryTable %<>%
-      dplyr::mutate(newV = dplyr::lead(V) - V,
-                    newE = dplyr::lead(E) - E,
-                    newI = dplyr::lead(I) - I,
-                    newR = dplyr::lead(R) - R,
-                    newD = dplyr::lead(D) - D,
-                    cumE = dplyr::first(E) + cumsum(dplyr::case_when(newE > 0 ~ newE, .default = 0)),
-                    cumI = dplyr::first(I) + cumsum(dplyr::case_when(newI > 0 ~ newI, .default = 0)))
+      dplyr::mutate(newV = caseWhenLargerThanZero(dplyr::lead(V) - V),
+                    newE = caseWhenLargerThanZero(dplyr::lead(E) - E),
+                    newI = caseWhenLargerThanZero(dplyr::lead(I) - I),
+                    newR = caseWhenLargerThanZero(dplyr::lead(R) - R),
+                    newD = caseWhenLargerThanZero(dplyr::lead(D) - D),
+                    cumE = dplyr::first(E) + cumsum(caseWhenLargerThanZero(newE)),
+                    cumI = dplyr::first(I) + cumsum(caseWhenLargerThanZero(newI)))
 
     stopifnot(unique(terra::nlyr(timeseries)) == n.days + 1)
     terra::time(timeseries) <- lubridate::date(startDate) +
