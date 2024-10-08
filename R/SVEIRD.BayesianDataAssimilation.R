@@ -1049,6 +1049,7 @@ last(incidenceData$Date)\t%s\t\tlast(summaryTable$Date)\t%s\n",
       ## "newVaccinated".
       newVaccinated <- alpha * reclassifyBelowUpperBound(layers$Susceptible, upper = 1)
 
+      ## FIXME: radius is not defined in this scope!
       ## NOTE: see the discussion in the literate document in the spatialEpisim stable branch.
       if (aggregationFactor > 1)
         weights <- averageEuclideanDistance(lambda = radius, aggregationFactor)

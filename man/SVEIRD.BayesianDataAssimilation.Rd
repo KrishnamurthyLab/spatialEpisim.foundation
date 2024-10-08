@@ -10,6 +10,7 @@ SVEIRD.BayesianDataAssimilation(
   gamma,
   sigma,
   delta,
+  startDate,
   n.days,
   seedData,
   neighbourhood.order = 0,
@@ -17,12 +18,11 @@ SVEIRD.BayesianDataAssimilation(
   populationSpatRaster,
   subregionsSpatVector,
   aggregationFactor,
-  startDate,
   countryCodeISO3C,
-  incidenceData,
-  deathData,
   simulationIsDeterministic = TRUE,
   dataAssimilationEnabled = FALSE,
+  incidenceData,
+  deathData,
   healthZoneCoordinates,
   variableCovarianceFunction,
   forecastError.cov.sdBackground,
@@ -42,6 +42,8 @@ SVEIRD.BayesianDataAssimilation(
 \item{sigma}{The rate of recovery (per day)}
 
 \item{delta}{The fatality rate (per day)}
+
+\item{startDate}{The date (in YYYY-MM-DD format) the simulation begins.}
 
 \item{n.days}{The number of days the simulation will run for, beginning from
 the startDate.}
@@ -75,9 +77,14 @@ it is missing no cropping is performed.}
 aggregate into a single cell. The aggregation factor must be the same as
 that used to generate the SpatRaster for layers.}
 
-\item{startDate}{The date (in YYYY-MM-DD format) the simulation begins.}
-
 \item{countryCodeISO3C}{The ISO three character code for a recognized country.}
+
+\item{simulationIsDeterministic}{Whether stochasticity is enabled or not; if
+the simulation is deterministic then no stochastic processes are used and
+the simulation is entirely deterministic. Either \code{TRUE} or \code{FALSE}.}
+
+\item{dataAssimilationEnabled}{Whether Bayesian data assimilation will be
+used for state reporting data.}
 
 \item{incidenceData}{A "situation report" dataframe. The first column
 provides the date of the officially reported, observed incidence of the
@@ -104,13 +111,6 @@ disease, in YYYY-MM-DD format.
 
 \item{deathData}{Data of the same format as incidenceData, but observations
 represent deaths, not infections.}
-
-\item{simulationIsDeterministic}{Whether stochasticity is enabled or not; if
-the simulation is deterministic then no stochastic processes are used and
-the simulation is entirely deterministic. Either \code{TRUE} or \code{FALSE}.}
-
-\item{dataAssimilationEnabled}{Whether Bayesian data assimilation will be
-used for state reporting data.}
 
 \item{healthZoneCoordinates}{The coordinates of health zones in the country
 of interest, TODO: describe the use of the data so users understand why

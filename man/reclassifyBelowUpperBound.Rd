@@ -4,12 +4,14 @@
 \alias{reclassifyBelowUpperBound}
 \title{Reclassify Below Upper Bound}
 \usage{
-reclassifyBelowUpperBound(raster, upper)
+reclassifyBelowUpperBound(raster, upper, reclassification = 0)
 }
 \arguments{
 \item{raster}{a SpatRaster to reclassify}
 
 \item{upper}{the upper bound, not included in the range of values classified}
+
+\item{reclassification}{the value to use when reclassifying those below the upper value (zero by default).}
 }
 \value{
 the reclassified SpatRaster
