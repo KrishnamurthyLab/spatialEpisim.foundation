@@ -48,6 +48,7 @@
 <span>  <span class="va">gamma</span>,</span>
 <span>  <span class="va">sigma</span>,</span>
 <span>  <span class="va">delta</span>,</span>
+<span>  <span class="va">startDate</span>,</span>
 <span>  <span class="va">n.days</span>,</span>
 <span>  <span class="va">seedData</span>,</span>
 <span>  neighbourhood.order <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -55,12 +56,11 @@
 <span>  <span class="va">populationSpatRaster</span>,</span>
 <span>  <span class="va">subregionsSpatVector</span>,</span>
 <span>  <span class="va">aggregationFactor</span>,</span>
-<span>  <span class="va">startDate</span>,</span>
 <span>  <span class="va">countryCodeISO3C</span>,</span>
-<span>  <span class="va">incidenceData</span>,</span>
-<span>  <span class="va">deathData</span>,</span>
 <span>  simulationIsDeterministic <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  dataAssimilationEnabled <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  <span class="va">incidenceData</span>,</span>
+<span>  <span class="va">deathData</span>,</span>
 <span>  <span class="va">healthZoneCoordinates</span>,</span>
 <span>  <span class="va">variableCovarianceFunction</span>,</span>
 <span>  <span class="va">forecastError.cov.sdBackground</span>,</span>
@@ -93,6 +93,10 @@
 
 <dt id="arg-delta">delta<a class="anchor" aria-label="anchor" href="#arg-delta"></a></dt>
 <dd><p>The fatality rate (per day)</p></dd>
+
+
+<dt id="arg-startdate">startDate<a class="anchor" aria-label="anchor" href="#arg-startdate"></a></dt>
+<dd><p>The date (in YYYY-MM-DD format) the simulation begins.</p></dd>
 
 
 <dt id="arg-n-days">n.days<a class="anchor" aria-label="anchor" href="#arg-n-days"></a></dt>
@@ -141,12 +145,19 @@ aggregate into a single cell. The aggregation factor must be the same as
 that used to generate the SpatRaster for layers.</p></dd>
 
 
-<dt id="arg-startdate">startDate<a class="anchor" aria-label="anchor" href="#arg-startdate"></a></dt>
-<dd><p>The date (in YYYY-MM-DD format) the simulation begins.</p></dd>
-
-
 <dt id="arg-countrycodeiso-c">countryCodeISO3C<a class="anchor" aria-label="anchor" href="#arg-countrycodeiso-c"></a></dt>
 <dd><p>The ISO three character code for a recognized country.</p></dd>
+
+
+<dt id="arg-simulationisdeterministic">simulationIsDeterministic<a class="anchor" aria-label="anchor" href="#arg-simulationisdeterministic"></a></dt>
+<dd><p>Whether stochasticity is enabled or not; if
+the simulation is deterministic then no stochastic processes are used and
+the simulation is entirely deterministic. Either <code>TRUE</code> or <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-dataassimilationenabled">dataAssimilationEnabled<a class="anchor" aria-label="anchor" href="#arg-dataassimilationenabled"></a></dt>
+<dd><p>Whether Bayesian data assimilation will be
+used for state reporting data.</p></dd>
 
 
 <dt id="arg-incidencedata">incidenceData<a class="anchor" aria-label="anchor" href="#arg-incidencedata"></a></dt>
@@ -176,17 +187,6 @@ disease, in YYYY-MM-DD format.</p>
 <dt id="arg-deathdata">deathData<a class="anchor" aria-label="anchor" href="#arg-deathdata"></a></dt>
 <dd><p>Data of the same format as incidenceData, but observations
 represent deaths, not infections.</p></dd>
-
-
-<dt id="arg-simulationisdeterministic">simulationIsDeterministic<a class="anchor" aria-label="anchor" href="#arg-simulationisdeterministic"></a></dt>
-<dd><p>Whether stochasticity is enabled or not; if
-the simulation is deterministic then no stochastic processes are used and
-the simulation is entirely deterministic. Either <code>TRUE</code> or <code>FALSE</code>.</p></dd>
-
-
-<dt id="arg-dataassimilationenabled">dataAssimilationEnabled<a class="anchor" aria-label="anchor" href="#arg-dataassimilationenabled"></a></dt>
-<dd><p>Whether Bayesian data assimilation will be
-used for state reporting data.</p></dd>
 
 
 <dt id="arg-healthzonecoordinates">healthZoneCoordinates<a class="anchor" aria-label="anchor" href="#arg-healthzonecoordinates"></a></dt>
